@@ -1,0 +1,30 @@
+# =============================================================================
+# mrp-rstk-dev - Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in the sensitive values.
+# NEVER commit terraform.tfvars to version control!
+#
+# Alternatively, set these as environment variables:
+#   export TF_VAR_ormongo_dbname="your_db_name"
+#   export TF_VAR_ormongo_password="your_password"
+#   etc.
+# =============================================================================
+
+# App settings (override defaults if needed)
+# app_name                = "mrp-rstk-dev"
+# region                  = "us"
+# stack                   = "heroku-24"
+# team_name               = "rootstocksoftware"
+
+# Dyno scaling
+# dashboard_dyno_size     = "standard-1x"
+# dashboard_dyno_quantity = 1
+# myworker_dyno_size      = "standard-1x"
+# myworker_dyno_quantity  = 1
+
+# Sensitive values (REQUIRED - fill these in)
+ormongo_dbname   = ""
+ormongo_password = ""
+ormongo_rs_url   = ""
+ormongo_url      = ""
+ormongo_username = ""
