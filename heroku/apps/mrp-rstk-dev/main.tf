@@ -101,7 +101,7 @@ resource "heroku_addon" "papertrail" {
 # We use null_resource + Heroku Kolkrabbi API to manage it.
 # -----------------------------------------------------------------------------
 
-# Step 1: Connect GitHub repo to Heroku app
+# Step 1: Connect GitHub repo to Heroku app (idempotent - skips if already connected)
 resource "null_resource" "github_connect" {
   triggers = {
     app_name    = heroku_app.mrp_rstk_dev.name
@@ -110,18 +110,30 @@ resource "null_resource" "github_connect" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      curl -sf -X POST \
-        "https://kolkrabbi.heroku.com/account/github/repo" \
-        -H "Authorization: Bearer $HEROKU_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d '{"app_id": "${heroku_app.mrp_rstk_dev.uuid}", "repo": "${var.github_repo}"}'
+      # Get token from HEROKU_API_KEY or fall back to heroku CLI
+      TOKEN="$${HEROKU_API_KEY:-$(heroku auth:token 2>/dev/null)}"
+
+      # Check if GitHub is already connected
+      EXISTING=$(curl -sf \
+        "https://kolkrabbi.heroku.com/apps/${heroku_app.mrp_rstk_dev.uuid}/github" \
+        -H "Authorization: Bearer $TOKEN" 2>/dev/null)
+
+      if echo "$EXISTING" | grep -q '"repo"'; then
+        echo "GitHub already connected, skipping..."
+      else
+        curl -sf -X POST \
+          "https://kolkrabbi.heroku.com/account/github/repo" \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"app_id": "${heroku_app.mrp_rstk_dev.uuid}", "repo": "${var.github_repo}"}'
+      fi
     EOT
   }
 
   depends_on = [heroku_app.mrp_rstk_dev]
 }
 
-# Step 2: Configure auto-deploy branch
+# Step 2: Configure auto-deploy branch (idempotent - always applies desired state)
 resource "null_resource" "auto_deploy" {
   triggers = {
     app_name      = heroku_app.mrp_rstk_dev.name
@@ -132,9 +144,12 @@ resource "null_resource" "auto_deploy" {
 
   provisioner "local-exec" {
     command = <<-EOT
+      # Get token from HEROKU_API_KEY or fall back to heroku CLI
+      TOKEN="$${HEROKU_API_KEY:-$(heroku auth:token 2>/dev/null)}"
+
       curl -sf -X PATCH \
         "https://kolkrabbi.heroku.com/apps/${heroku_app.mrp_rstk_dev.uuid}/github" \
-        -H "Authorization: Bearer $HEROKU_API_KEY" \
+        -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{
           "auto_deploy": ${var.auto_deploy},
