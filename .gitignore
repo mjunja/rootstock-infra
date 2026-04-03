@@ -25,6 +25,10 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Plan files (contain sensitive data + binary format)
+tfplan
+*.tfplan
+
 # Provider plugins (large binaries)
 .terraform/
 .terraform.lock.hcl
