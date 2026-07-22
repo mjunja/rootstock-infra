@@ -1,38 +1,38 @@
 # =============================================================================
-# Outputs
+# rootf-test-last-1 - Outputs (re-exported from the module)
 # =============================================================================
 
 output "app_id" {
   description = "The Heroku app ID"
-  value       = heroku_app.rootf_test_last_1.id
+  value       = module.app.app_id
 }
 
 output "app_name" {
   description = "The Heroku app name"
-  value       = heroku_app.rootf_test_last_1.name
+  value       = module.app.app_name
 }
 
 output "web_url" {
   description = "The web URL of the app"
-  value       = heroku_app.rootf_test_last_1.web_url
+  value       = module.app.web_url
 }
 
 output "git_url" {
   description = "The Git URL for deploying to this app"
-  value       = heroku_app.rootf_test_last_1.git_url
+  value       = module.app.git_url
 }
 
 output "heroku_hostname" {
   description = "The hostname for the app"
-  value       = heroku_app.rootf_test_last_1.heroku_hostname
+  value       = module.app.heroku_hostname
 }
 
 output "pipeline_id" {
   description = "The pipeline this app belongs to"
-  value       = data.heroku_pipeline.rootforms.id
+  value       = module.app.pipeline_id
 }
 
 output "pipeline_stage" {
   description = "The pipeline stage"
-  value       = heroku_pipeline_coupling.rootf_test_last_1.stage
+  value       = module.app.pipeline_stage
 }

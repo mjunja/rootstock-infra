@@ -55,13 +55,15 @@ variable "pipeline_stage" {
 # GitHub integration & deployment branch
 # -----------------------------------------------------------------------------
 variable "github_repo" {
-  description = "GitHub repository in 'owner/repo' format"
+  description = "GitHub repository in 'owner/repo' format. Set to null for apps with no GitHub integration (skips the Kolkrabbi wiring entirely)."
   type        = string
+  default     = null
 }
 
 variable "deploy_branch" {
-  description = "Git branch that auto-deploys to this app"
+  description = "Git branch that auto-deploys to this app. Required when github_repo is set."
   type        = string
+  default     = null
 }
 
 variable "auto_deploy" {

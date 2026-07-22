@@ -1,117 +1,12 @@
 # =============================================================================
-# App Variables
+# rootf-qa - Sensitive inputs
 # =============================================================================
-
-variable "app_name" {
-  description = "The name of the Heroku app"
-  type        = string
-  default     = "rootf-qa"
-}
-
-variable "region" {
-  description = "Heroku region"
-  type        = string
-  default     = "us"
-}
-
-variable "stack" {
-  description = "Heroku stack"
-  type        = string
-  default     = "heroku-22"
-}
-
-variable "team_name" {
-  description = "Heroku team that owns the app"
-  type        = string
-  default     = "rootstocksoftware"
-}
-
-# =============================================================================
-# GitHub Integration & Deployment Branch
-# =============================================================================
-
-variable "github_repo" {
-  description = "GitHub repository in 'owner/repo' format"
-  type        = string
-  default     = "rootstockmfg/hkrdocs"
-}
-
-variable "deploy_branch" {
-  description = "Git branch connected to this app (auto-deploy disabled)"
-  type        = string
-  default     = "released-build"
-}
-
-variable "auto_deploy" {
-  description = "Enable auto-deploy on push to deploy_branch"
-  type        = bool
-  default     = false
-}
-
-variable "wait_for_ci" {
-  description = "Wait for CI to pass before auto-deploying"
-  type        = bool
-  default     = true
-}
-
-# =============================================================================
-# Dyno Configuration
-# =============================================================================
-
-variable "rfworker_dyno_size" {
-  description = "Dyno size for the rfworker process"
-  type        = string
-  default     = "standard-1x"
-}
-
-variable "rfworker_dyno_quantity" {
-  description = "Number of rfworker dynos"
-  type        = number
-  default     = 0
-}
-
-# =============================================================================
-# Config Vars (non-sensitive)
-# =============================================================================
-
-variable "default_mongodb" {
-  description = "Default MongoDB provider"
-  type        = string
-  default     = "ORMONGO"
-}
-
-variable "log_level" {
-  description = "Application log level"
-  type        = string
-  default     = "DEBUG"
-}
-
-variable "ormongo_region" {
-  description = "ObjectRocket MongoDB region"
-  type        = string
-  default     = "IAD"
-}
-
-variable "sforce_namespace" {
-  description = "Salesforce package namespace"
-  type        = string
-  default     = "DOX__"
-}
-
-variable "soap_apiversion_ovrride" {
-  description = "SOAP API version override"
-  type        = string
-  default     = "45.0"
-}
-
-variable "supported_locale" {
-  description = "Supported locales for field-level formatting"
-  type        = string
-  default     = "de_AT,sv_SE,de_DE,en_DE,de_EN"
-}
-
-# =============================================================================
-# Config Vars (sensitive - set via env vars or .tfvars)
+# Only the sensitive config vars are declared here. Everything else is set
+# directly in main.tf or inherited from the rstk-app module defaults.
+# Provide values via terraform.tfvars or TF_VAR_* environment variables.
+#
+# NOTE: addon-injected vars (ORMONGO_REGION, ORMONGO_RS_URL, ORMONGO_URL, PAPERTRAIL_API_TOKEN)
+# are NOT declared or managed here.
 # =============================================================================
 
 variable "heroku_password" {
@@ -134,18 +29,6 @@ variable "ormongo_dbname" {
 
 variable "ormongo_password" {
   description = "ObjectRocket MongoDB password"
-  type        = string
-  sensitive   = true
-}
-
-variable "ormongo_rs_url" {
-  description = "ObjectRocket MongoDB replica set URL"
-  type        = string
-  sensitive   = true
-}
-
-variable "ormongo_url" {
-  description = "ObjectRocket MongoDB URL"
   type        = string
   sensitive   = true
 }

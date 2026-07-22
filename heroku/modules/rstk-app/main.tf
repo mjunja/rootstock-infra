@@ -75,6 +75,8 @@ resource "heroku_addon" "papertrail" {
 
 # Step 1: Connect GitHub repo to Heroku app (idempotent - skips if already connected)
 resource "null_resource" "github_connect" {
+  count = var.github_repo == null ? 0 : 1
+
   triggers = {
     app_name    = heroku_app.this.name
     github_repo = var.github_repo
@@ -107,6 +109,8 @@ resource "null_resource" "github_connect" {
 
 # Step 2: Configure auto-deploy branch (idempotent - always applies desired state)
 resource "null_resource" "auto_deploy" {
+  count = var.github_repo == null ? 0 : 1
+
   triggers = {
     app_name      = heroku_app.this.name
     deploy_branch = var.deploy_branch
@@ -132,6 +136,18 @@ resource "null_resource" "auto_deploy" {
   }
 
   depends_on = [null_resource.github_connect]
+}
+
+# GitHub wiring gained `count` when it became optional; keep existing state
+# addresses valid for apps applied before that change.
+moved {
+  from = null_resource.github_connect
+  to   = null_resource.github_connect[0]
+}
+
+moved {
+  from = null_resource.auto_deploy
+  to   = null_resource.auto_deploy[0]
 }
 
 # -----------------------------------------------------------------------------
