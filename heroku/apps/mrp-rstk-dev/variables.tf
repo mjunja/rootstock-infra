@@ -33,13 +33,13 @@ variable "team_name" {
 variable "github_repo" {
   description = "GitHub repository in 'owner/repo' format"
   type        = string
-  default     = "rootstockmfg/rstk-erp"
+  default     = "rootstockmfg/hkmrp"
 }
 
 variable "deploy_branch" {
   description = "Git branch that auto-deploys to this app"
   type        = string
-  default     = "develop"
+  default     = "main"
 }
 
 variable "auto_deploy" {
