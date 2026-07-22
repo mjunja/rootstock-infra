@@ -1,5 +1,5 @@
 # =============================================================================
-# mrp-rstk-qa - Outputs (re-exported from the module)
+# finreport-rstk-qa - Outputs (re-exported from the module)
 # =============================================================================
 
 output "app_id" {

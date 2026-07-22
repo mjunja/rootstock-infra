@@ -1,5 +1,5 @@
 # =============================================================================
-# mrp-rstk-qa - Terraform Variables
+# finreport-rstk-qa - Terraform Variables
 # =============================================================================
 # Copy this file to terraform.tfvars and fill in the sensitive values.
 # NEVER commit terraform.tfvars to version control!

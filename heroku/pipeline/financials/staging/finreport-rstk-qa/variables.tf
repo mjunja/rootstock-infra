@@ -1,5 +1,5 @@
 # =============================================================================
-# mrp-rstk-qa - Sensitive inputs
+# finreport-rstk-qa - Sensitive inputs
 # =============================================================================
 # Only the sensitive config vars are declared here. Everything else is set
 # directly in main.tf or inherited from the rstk-app module defaults.

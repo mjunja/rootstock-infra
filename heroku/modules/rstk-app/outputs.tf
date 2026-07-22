@@ -1,38 +1,43 @@
 # =============================================================================
-# mrp-rstk-qa - Outputs (re-exported from the module)
+# rstk-app module - Outputs
 # =============================================================================
 
 output "app_id" {
   description = "The Heroku app ID"
-  value       = module.app.app_id
+  value       = heroku_app.this.id
 }
 
 output "app_name" {
   description = "The Heroku app name"
-  value       = module.app.app_name
+  value       = heroku_app.this.name
+}
+
+output "app_uuid" {
+  description = "The Heroku app UUID"
+  value       = heroku_app.this.uuid
 }
 
 output "web_url" {
   description = "The web URL of the app"
-  value       = module.app.web_url
+  value       = heroku_app.this.web_url
 }
 
 output "git_url" {
   description = "The Git URL for deploying to this app"
-  value       = module.app.git_url
+  value       = heroku_app.this.git_url
 }
 
 output "heroku_hostname" {
   description = "The hostname for the app"
-  value       = module.app.heroku_hostname
+  value       = heroku_app.this.heroku_hostname
 }
 
 output "pipeline_id" {
   description = "The pipeline this app belongs to"
-  value       = module.app.pipeline_id
+  value       = data.heroku_pipeline.this.id
 }
 
 output "pipeline_stage" {
   description = "The pipeline stage"
-  value       = module.app.pipeline_stage
+  value       = heroku_pipeline_coupling.this.stage
 }

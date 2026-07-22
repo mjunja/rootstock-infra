@@ -1,27 +1,20 @@
 # =============================================================================
-# mrp-rstk-qa - Heroku Application
+# finreport-rstk-qa - Heroku Application
 # =============================================================================
-# Part of the "mrp" pipeline, "development" stage.
-# Mirrors the live Heroku app.
-#
-# Pipeline: mrp
-#   development: mrp-rstk-dev, mrp-rstk-qa (this app)
-#   staging:     mrp-rstk-test, mrp-spectra-test
-#   production:  mrp-rstk-prod, mrp-prod, mrp-spectra-prod
-#
-# Shared logic and common defaults live in the rstk-app module; only this app's
-# specifics are set below.
+# Part of the "financials" pipeline, "staging" stage.
+# Mirrors the live Heroku app. Shared logic and common defaults live in the
+# rstk-app module; only this app's specifics are set below.
 # =============================================================================
 
 module "app" {
-  source = "../../../modules/rstk-app"
+  source = "../../../../modules/rstk-app"
 
-  app_name      = "mrp-rstk-qa"
-  pipeline_name = "mrp"
-  # pipeline_stage defaults to "development"
+  app_name       = "finreport-rstk-qa"
+  pipeline_name  = "financials"
+  pipeline_stage = "staging"
 
   # GitHub integration (live values)
-  github_repo   = "rootstockmfg/hkmrp"
+  github_repo   = "rootstockmfg/hkarag"
   deploy_branch = "main"
   auto_deploy   = true
   wait_for_ci   = false
@@ -29,20 +22,20 @@ module "app" {
   # Owned add-on
   papertrail_plan = "papertrail:choklad"
 
-  # Dyno formation (currently scaled to 0)
+  # Dyno formation (running 1 dyno)
   formations = {
-    dashboard = { size = "standard-1x", quantity = 0 }
-    myworker  = { size = "standard-1x", quantity = 0 }
+    newoneoff = { size = "standard-1x", quantity = 1 }
   }
 
-  # Non-sensitive config vars. DEFAULT_MONGODB=ORMONGO comes from the module base.
-  config_vars = {
-    APP_NAME          = "mrp_qa"
-    JAVA_OPTS         = "-XX:+UseG1GC -XX:MaxRAMPercentage=80.0 -XX:+UseContainerSupport"
-    LOGSTASH_URL      = "https://rootstock-logstash-8a4784f9525f.herokuapp.com"
-    NO_NAMESPACE_ORGS = "00Dd0000000csD5EAI"
-    PGCLIENTENCODING  = "UTF8"
+config_vars = {
+    APP_NAME                  = "finreport_qa"
+    JAVA_OPTS                 = "-XX:+UseG1GC -Xmx8g -Xms1g"
+    PGCLIENTENCODING          = "UTF8"
+    LOGSTASH_URL              = "https://rootstock-logstash-8a4784f9525f.herokuapp.com"
   }
+  
+  # Non-sensitive config vars: live app only sets DEFAULT_MONGODB=ORMONGO, which
+  # comes from the module base, so there is nothing app-specific to add here.
 
   # Sensitive config vars - supplied via terraform.tfvars / TF_VAR_* env vars.
   sensitive_config_vars = {
