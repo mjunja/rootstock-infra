@@ -1,0 +1,24 @@
+# =============================================================================
+# worker-test-last-1 - Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in the sensitive values.
+# NEVER commit terraform.tfvars to version control!
+#
+# Alternatively, set these as environment variables:
+#   export TF_VAR_api_usn="value"
+#   etc.
+# =============================================================================
+
+# Sensitive values (REQUIRED - fill these in)
+api_usn              = ""
+api_usnky            = ""
+cloudamqp_apikey     = ""
+cloudamqp_url        = ""
+heroku_password      = ""
+heroku_username      = ""
+ormongo_dbname       = ""
+ormongo_password     = ""
+ormongo_username     = ""
+rstk_key             = ""
+sforce_client_key    = ""
+sforce_client_secret = ""

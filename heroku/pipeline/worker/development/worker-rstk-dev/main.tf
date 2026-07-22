@@ -1,0 +1,152 @@
+# =============================================================================
+# worker-rstk-dev - Heroku Application
+# =============================================================================
+# Part of the "worker" pipeline, "development" stage.
+# Mirrors the live Heroku app. Shared logic and common defaults live in the
+# rstk-app module; only this app's specifics are set below.
+# =============================================================================
+
+module "app" {
+  source = "../../../../modules/rstk-app"
+
+  app_name       = "worker-rstk-dev"
+  pipeline_name  = "worker"
+  # pipeline_stage defaults to "development"
+
+  # No GitHub integration is configured on this app (github_repo stays null,
+  # which skips the Kolkrabbi wiring in the module).
+
+  # Owned add-on
+  papertrail_plan = "papertrail:choklad"
+
+  # Dyno formation (live values)
+  formations = {
+    worker = { size = "standard-1x", quantity = 2 }
+  }
+
+  # Non-sensitive config vars. DEFAULT_MONGODB=ORMONGO comes from the module base.
+  config_vars = {
+    ADHOC_REQ_SHELFLIFE_IN_MINS                               = "2"
+    APP_NAME                                                  = "rootforms_dev"
+    ARAGING_APP_NAME                                          = "finreport-rstk-dev"
+    ARAGING_ONEOFF_DYNO_TYPE                                  = "performance-l"
+    ARAGING_PROCESS_NAME                                      = "newoneoff"
+    BOTH_MONGOS                                               = "true"
+    DBFieldId                                                 = "rstk__formula_invoice__c,rstk__soinv_invoiceno__c,rstk__soinv_invoice__c,rstk__sohdr_order__c,Name"
+    DEVTESTING                                                = "true"
+    DYNOSTATS_SHELFLIFE_IN_MINS                               = "1"
+    DYNOSTATS_THRESHOLD                                       = "1"
+    DisableFieldLevelCallback                                 = "false"
+    ENABLE_OLD_ONEOFF_INVOCATION_IMPL                         = "false"
+    ENABLE_ORGID_BASED_ROUTING                                = "false"
+    IsFieldLevelCallbackEnabled                               = "true"
+    LOGSTASH_URL                                              = "https://rootstock-logstash-8a4784f9525f.herokuapp.com"
+    LOG_LEVEL                                                 = "DEBUG"
+    MQ_THRESHOLD                                              = "3500"
+    MRP_APP_NAME                                              = "mrp-rstk-dev"
+    MRP_ONEOFF_DYNO_TYPE                                      = "performance-l-ram"
+    MRP_ONEOFF_DYNO_TYPE_pde3                                 = "performance-l"
+    MRP_PROCESS_NAME                                          = "myworker"
+    ONEOFF_ENABLED                                            = "true"
+    ONEOFF_REQ_SHELFLIFE_IN_MINS                              = "60"
+    ORMONGO_ORGS                                              = "00DU0000000IF2AMAW,00Dd0000000fRHIEA2"
+    Org_ID                                                    = "00D36000001Ee5MEAS"
+    QUEUE_NAME                                                = "CURR"
+    RF_APP_NAME                                               = "rootf-dev"
+    RF_ONEOFF_DYNO_TYPE                                       = "standard-2x"
+    RF_PROCFILE_PROCESS_NAME                                  = "rfworker"
+    SFORCE_NAMESPACE                                          = "DOX__"
+    SOAP_APIVERSION_OVRRIDE                                   = "45.0"
+    SOInvoice                                                 = "rstk__soinv_invoice__c"
+    SO_Number                                                 = "rstk__sohdr_order__c"
+    SPINOFF_RETRY_WAIT_TIME_IN_MINS                           = "1"
+    STDCOSTS_APP_NAME                                         = "stdcosts-dev"
+    STDCOSTS_CSSIMSTDMOVE_ONEOFF_DYNO_TYPE                    = "performance-l"
+    STDCOSTS_ONEOFF_DYNO_TYPE                                 = "standard-1x"
+    STDCOSTS_PROCESS_NAME                                     = "oneoff"
+    STDCOSTS_cssimstdmove_ONEOFF_DYNO_TYPE                    = "performance-l"
+    SalesInvoiceName                                          = "Name"
+    UniqueFiled                                               = "Invoice_Number,SO_Number,Order_No"
+    WAIT_FOR_DYNO_AVAILABILITY                                = "true"
+    addGermanSupport                                          = "true"
+    devqaff_erp_mrp_planmrp_APP_NAME                          = "mrp-rstk-dev"
+    devqaff_erp_mrp_planmrp_PROCFILE_PROCESS_NAME             = "myworker"
+    doc_mapped_field_names                                    = "Invoice_Number"
+    isLoging                                                  = "false"
+    localeCountry                                             = "AT,SE"
+    localeLanguage                                            = "de,sv"
+    mapped_field_names                                        = "rstk__soinv_order__r.Name,rstk__soinv_invoice__c,rstk__soinv_invdate__c,rstk__soinv_order__r.rstk__sohdr_custpo__c,Quantity_For_Display__c,rstk__soinvline_extamount__c,rstk__soinv_total__c,rstk__soinv_freightamt__c,rstk__soinv_taxovramt__c,rstk__soinv_grandtotal__c,Credits_and_Prepayments__c,rstk__soinvline_qty__c,rstk__soinvline_line__r.rstk__soshipline_qtyship__c,rstk__soinvline_uom__r.rstk__syuom_uom__c,rstk__soinvline_price__c,rstk__soinv_totalppya__c,Invoice_Total_Due__c,rstk__soinvline_line__r.rstk__soshipline_line__r.rstk__soline_pricecalcbase__c,Total_with_Credits_and_Prepayments__c,rstk__soinvline_line__r.rstk__soshipline_line__r.rstk__soline_pricecalcdisc__c,Price_For_Display__c,rstk__sohdr_order__c,rstk__soline_qtyorder__c,name,Name,rstk__formula_invoice__c,rstk__soinv_invoiceno__c"
+    pde3_erp_mrp_planmrp_APP_NAME                             = "mrp-rstk-dev"
+    pde3_erp_mrp_planmrp_PROCFILE_PROCESS_NAME                = "myworker"
+    pde3_erp_stdcosts_costrollup_APP_NAME                     = "stdcosts-dev"
+    pde3_erp_stdcosts_costrollup_PROCFILE_PROCESS_NAME        = "oneoff"
+    pde3_erp_stdcosts_cssimstdmove_APP_NAME                   = "stdcosts-dev"
+    pde3_erp_stdcosts_cssimstdmove_PROCFILE_PROCESS_NAME      = "oneoff"
+    pde3_erp_stdcosts_icsetmtlsimcost_APP_NAME                = "stdcosts-dev"
+    pde3_erp_stdcosts_icsetmtlsimcost_PROCFILE_PROCESS_NAME   = "oneoff"
+    pde3_erp_stdcosts_posetmtlcost_APP_NAME                   = "stdcosts-dev"
+    pde3_erp_stdcosts_posetmtlcost_PROCFILE_PROCESS_NAME      = "oneoff"
+    pde3f_finance_araging_APP_NAME                            = "finreport-rstk-dev"
+    pde3f_finance_araging_ONEOFF_DYNO_TYPE                    = "performance-l"
+    pde3f_finance_araging_PROCFILE_PROCESS_NAME               = "newoneoff"
+    pde3f_finance_araging_aragingreport_APP_NAME              = "finreport-rstk-dev"
+    pde3f_finance_araging_aragingreport_ONEOFF_DYNO_TYPE      = "performance-l"
+    pde3f_finance_araging_aragingreport_PROCFILE_PROCESS_NAME = "newoneoff"
+    pde5_erp_mrp_planmrp_APP_NAME                             = "mrp-rstk-dev"
+    pde5_erp_mrp_planmrp_PROCFILE_PROCESS_NAME                = "myworker"
+    pde5_erp_stdcosts_costrollup_APP_NAME                     = "stdcosts-dev"
+    pde5_erp_stdcosts_costrollup_PROCFILE_PROCESS_NAME        = "oneoff"
+    pde5_erp_stdcosts_cssimstdmove_APP_NAME                   = "stdcosts-dev"
+    pde5_erp_stdcosts_cssimstdmove_PROCFILE_PROCESS_NAME      = "oneoff"
+    pde5_erp_stdcosts_icsetmtlsimcost_APP_NAME                = "stdcosts-dev"
+    pde5_erp_stdcosts_icsetmtlsimcost_PROCFILE_PROCESS_NAME   = "oneoff"
+    pde5_erp_stdcosts_posetmtlcost_APP_NAME                   = "stdcosts-dev"
+    pde5_erp_stdcosts_posetmtlcost_PROCFILE_PROCESS_NAME      = "oneoff"
+    pde5f_finance_araging_APP_NAME                            = "finreport-rstk-dev"
+    pde5f_finance_araging_ONEOFF_DYNO_TYPE                    = "performance-l"
+    pde5f_finance_araging_PROCFILE_PROCESS_NAME               = "newoneoff"
+    qarsf_finance_araging_APP_NAME                            = "finreport-rstk-dev"
+    qarsf_finance_araging_ONEOFF_DYNO_TYPE                    = "performance-l"
+    qarsf_finance_araging_PROCFILE_PROCESS_NAME               = "newoneoff"
+    supportedLocale                                           = "de_AT,sv_SE,de_DE,en_DE,de_EN"
+    templateId                                                = "aCT1Q0000004d64WAA,aCT1Q000000CwIXWA0"
+  }
+
+  # Sensitive config vars - supplied via terraform.tfvars / TF_VAR_* env vars.
+  sensitive_config_vars = {
+    API_USN              = var.api_usn
+    API_USNKY            = var.api_usnky
+    BONSAI_URL           = var.bonsai_url
+    MAVEN_REPO_PASSWORD  = var.maven_repo_password
+    MONGOLAB_URI         = var.mongolab_uri
+    ORMONGO_DBNAME       = var.ormongo_dbname
+    ORMONGO_PASSWORD     = var.ormongo_password
+    ORMONGO_USERNAME     = var.ormongo_username
+    RSTK_KEY             = var.rstk_key
+    SFORCE_CLIENT_KEY    = var.sforce_client_key
+    SFORCE_CLIENT_SECRET = var.sforce_client_secret
+    dburl                = var.dburl
+    dburl1               = var.dburl1
+  }
+}
+
+# -----------------------------------------------------------------------------
+# ormongo - owned by THIS app and shared with other apps via attachments
+# -----------------------------------------------------------------------------
+resource "heroku_addon" "ormongo" {
+  app_id = module.app.app_id
+  plan   = "ormongo:2-mmap"
+}
+
+# -----------------------------------------------------------------------------
+# Addon-injected config vars (NOT managed here)
+# -----------------------------------------------------------------------------
+# These are set automatically by the attached add-ons, so they are intentionally
+# absent from the config above:
+#   - CLOUDAMQP_APIKEY      -> cloudamqp (billed to web-rstk-dev)
+#   - CLOUDAMQP_URL         -> cloudamqp (billed to web-rstk-dev)
+#   - DATABASE_URL          -> heroku-postgresql
+#   - ORMONGO_REGION        -> ormongo (owned by this app)
+#   - ORMONGO_RS_URL        -> ormongo (owned by this app)
+#   - ORMONGO_URL           -> ormongo (owned by this app)
+#   - PAPERTRAIL_API_TOKEN  -> papertrail (owned by this app)
