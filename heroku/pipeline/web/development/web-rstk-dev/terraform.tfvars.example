@@ -1,0 +1,27 @@
+# =============================================================================
+# web-rstk-dev - Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in the sensitive values.
+# NEVER commit terraform.tfvars to version control!
+#
+# Alternatively, set these as environment variables:
+#   export TF_VAR_apps_client_key="value"
+#   etc.
+# =============================================================================
+
+# Sensitive values (REQUIRED - fill these in)
+apps_client_key      = ""
+apps_client_secret   = ""
+mongolab_uri         = ""
+ormongo_dbname       = ""
+ormongo_password     = ""
+ormongo_username     = ""
+rstk_key             = ""
+sforce_client_key    = ""
+sforce_client_secret = ""
+devqaff_dbname       = ""
+pde3_dbname          = ""
+pde3f_dbname         = ""
+pde5_dbname          = ""
+pde5f_dbname         = ""
+qarsf_dbname         = ""

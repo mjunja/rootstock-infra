@@ -1,0 +1,71 @@
+# =============================================================================
+# grafana-stg - Heroku Application
+# =============================================================================
+# Part of the "grafana" pipeline, "staging" stage.
+# Mirrors the live Heroku app. Shared logic and common defaults live in the
+# rstk-app module; only this app's specifics are set below.
+# =============================================================================
+
+module "app" {
+  source = "../../../../modules/rstk-app"
+
+  app_name       = "grafana-stg"
+  pipeline_name  = "grafana"
+  pipeline_stage = "staging"
+  stack          = "container"  # differs from the module default
+
+  # GitHub integration (live values)
+  github_repo   = "rootstockmfg/heroku-grafana"
+  deploy_branch = "main"
+  auto_deploy   = true
+  wait_for_ci   = false
+
+  # Dyno formation (live values)
+  formations = {
+    web = { size = "basic", quantity = 1 }
+  }
+
+  # Non-sensitive config vars.
+  # NOTE: this app has no DEFAULT_MONGODB set live; the module base adds
+  # DEFAULT_MONGODB=ORMONGO on first apply.
+  config_vars = {
+    GF_DATABASE_SCHEMA  = "grafana_stg"
+    GF_SERVER_DOMAIN    = "grafana-stg-4c716a255f33.herokuapp.com"
+    GF_SERVER_HTTP_PORT = "80"
+    GF_SERVER_ROOT_URL  = "http://grafana-stg-4c716a255f33.herokuapp.com/"
+  }
+
+  # Sensitive config vars - supplied via terraform.tfvars / TF_VAR_* env vars.
+  sensitive_config_vars = {
+
+  }
+}
+
+# -----------------------------------------------------------------------------
+# foundelasticsearch - owned by THIS app
+# -----------------------------------------------------------------------------
+resource "heroku_addon" "foundelasticsearch" {
+  app_id = module.app.app_id
+  plan   = "foundelasticsearch:beagle-ha"
+}
+
+# -----------------------------------------------------------------------------
+# heroku-postgresql - owned by THIS app
+# -----------------------------------------------------------------------------
+resource "heroku_addon" "heroku_postgresql" {
+  app_id = module.app.app_id
+  plan   = "heroku-postgresql:essential-0"
+}
+
+# -----------------------------------------------------------------------------
+# Addon-injected config vars (NOT managed here)
+# -----------------------------------------------------------------------------
+# These are set automatically by the attached add-ons, so they are intentionally
+# absent from the config above:
+#   - CLOUDAMQP_APIKEY                        -> cloudamqp (billed to web-rstk-prod)
+#   - CLOUDAMQP_URL                           -> cloudamqp (billed to web-rstk-prod)
+#   - DATABASE_URL                            -> heroku-postgresql (owned by this app)
+#   - FOUNDELASTICSEARCH_INITIAL_CREDENTIALS  -> foundelasticsearch (owned by this app)
+#   - FOUNDELASTICSEARCH_KIBANA               -> foundelasticsearch (owned by this app)
+#   - FOUNDELASTICSEARCH_URL                  -> foundelasticsearch (owned by this app)
+#   - HEROKU_POSTGRESQL_GREEN_URL             -> heroku-postgresql (owned by this app)

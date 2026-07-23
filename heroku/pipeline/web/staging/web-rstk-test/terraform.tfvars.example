@@ -1,0 +1,36 @@
+# =============================================================================
+# web-rstk-test - Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in the sensitive values.
+# NEVER commit terraform.tfvars to version control!
+#
+# Alternatively, set these as environment variables:
+#   export TF_VAR_apps_client_key="value"
+#   etc.
+# =============================================================================
+
+# Sensitive values (REQUIRED - fill these in)
+apps_client_key              = ""
+apps_client_secret           = ""
+database_url                 = ""
+mongolab_uri                 = ""
+ormongo_dbname               = ""
+ormongo_password             = ""
+ormongo_username             = ""
+rstk_key                     = ""
+sforce_client_key            = ""
+sforce_client_secret         = ""
+aphria_b2b_dbname            = ""
+aphria_sit_dbname            = ""
+capcium_rspilot_dbname       = ""
+cottenham_rspilot_dbname     = ""
+daidomachines_rspilot_dbname = ""
+fike_stage_dbname            = ""
+matouk_sb_dbname             = ""
+mdf_fullsand_dbname          = ""
+mevion_sb_dbname             = ""
+summitbodyworks_sb_dbname    = ""
+summittruck_sb_dbname        = ""
+sunstreet_dev02_sb_dbname    = ""
+unionwear_rspilot_dbname     = ""
+whiting_sb_dbname            = ""
