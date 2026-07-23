@@ -1,0 +1,365 @@
+# =============================================================================
+# stack-rollout - plan / approve / apply / rebuild for one or more apps
+# =============================================================================
+# Manually dispatched. The stack change itself is a normal committed edit to
+# the app's main.tf (or the module default); this workflow only rolls it out:
+#
+#   plan  ->  human approval (GitHub environment)  ->  apply  ->  rebuild
+#
+# The rebuild recreates a Heroku build from the app's CURRENT deployed branch
+# head - same commit SHA, no new commit - so the dynos actually move onto the
+# new stack (a stack change alone only sets the *build* stack).
+#
+# Canary-then-batch usage:
+#   run 1: apps = worker/staging/worker-rstk-qa            (canary, verify)
+#   run 2: apps = worker/staging/worker-test-last-0, ...   (rest of the fleet)
+#
+# Prerequisites (see .github/README.md):
+#   - the app's remote-state backend (pg) is configured in providers.tf and
+#     its state migrated (the workflow refuses to touch an app whose remote
+#     state is empty)
+#   - repo secret  HEROKU_API_KEY
+#   - repo secret  PG_CONN_STR  (postgres state backend connection string)
+#   - per-app secret TFVARS_<APP_NAME with - as _, uppercased>
+#     e.g. worker-rstk-qa -> TFVARS_WORKER_RSTK_QA  (content of terraform.tfvars)
+#   - repo secret  GH_REPOS_TOKEN  (read access to app source repos, for rebuild)
+#   - a "heroku-infra" environment with required reviewers (the approval gate)
+# =============================================================================
+name: stack-rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: "App dirs under heroku/pipeline/, comma or space separated (e.g. worker/staging/worker-rstk-qa)"
+        required: true
+        type: string
+      mode:
+        description: "plan-only shows the diff and stops; plan-and-apply continues through the approval gate"
+        type: choice
+        options: [plan-only, plan-and-apply]
+        default: plan-only
+      stack_only_guard:
+        description: "Fail if the plan changes anything besides heroku_app.stack"
+        type: boolean
+        default: true
+      redeploy:
+        description: "After apply: purge build cache and rebuild the latest deployed commit on the new stack"
+        type: boolean
+        default: true
+      allow_prod:
+        description: "Explicitly allow production apps (…/production/…) in this run; their applies additionally require heroku-infra-prod approval"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stack-rollout
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+  # State backend: pg (Heroku Postgres). tofu init reads this automatically.
+  PG_CONN_STR: ${{ secrets.PG_CONN_STR }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Parse the comma/space separated input into a matrix
+  # ---------------------------------------------------------------------------
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.parse.outputs.apps }}
+    steps:
+      - id: parse
+        run: |
+          APPS=$(echo "${{ inputs.apps }}" | tr ', ' '\n\n' | grep -v '^$' | jq -R . | jq -sc .)
+          echo "apps=$APPS" >> "$GITHUB_OUTPUT"
+          echo "Rolling out to: $APPS"
+
+      - name: Production guard
+        if: ${{ !inputs.allow_prod }}
+        run: |
+          PROD=$(echo '${{ steps.parse.outputs.apps }}' | jq -r '.[] | select(test("/production/"))')
+          if [ -n "$PROD" ]; then
+            echo "::error::This run includes production app(s): $PROD - re-run with allow_prod=true to proceed. Prod applies are additionally gated by the heroku-infra-prod environment."
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Plan (read-only). The plan output lands in the job summary so the reviewer
+  # can inspect it before approving the apply job.
+  # ---------------------------------------------------------------------------
+  plan:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app_dir: ${{ fromJson(needs.prepare.outputs.apps) }}
+    defaults:
+      run:
+        working-directory: heroku/pipeline/${{ matrix.app_dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Write terraform.tfvars from per-app secret
+        env:
+          SECRETS_CONTEXT: ${{ toJson(secrets) }}
+        run: |
+          APP=$(basename "${{ matrix.app_dir }}")
+          KEY="TFVARS_$(echo "$APP" | tr 'a-z-' 'A-Z_')"
+          echo "$SECRETS_CONTEXT" | jq -r --arg k "$KEY" '.[$k] // empty' > terraform.tfvars
+          if [ ! -s terraform.tfvars ]; then
+            echo "::error::Repo secret $KEY is missing or empty - cannot plan $APP without its secrets map."
+            exit 1
+          fi
+
+      - name: Init + remote-state guard
+        run: |
+          tofu init -input=false
+          if ! tofu state list | grep -q .; then
+            echo "::error::State for ${{ matrix.app_dir }} is EMPTY. This app is not migrated to remote state - uncomment the s3 backend in providers.tf, migrate/import state locally, then re-run. Applying now would try to re-create live resources."
+            exit 1
+          fi
+
+      - name: Plan
+        run: |
+          tofu plan -input=false -no-color -out=tfplan | tee plan.txt
+          {
+            echo "## Plan: \`${{ matrix.app_dir }}\`"
+            echo '```'
+            tail -c 60000 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stack-only guard
+        if: inputs.stack_only_guard
+        run: |
+          tofu show -json tfplan > plan.json
+          BAD=$(jq '[.resource_changes[]
+            | select(.change.actions != ["no-op"] and .change.actions != ["read"])
+            | select(
+                (.type != "heroku_app")
+                or (.change.actions != ["update"])
+                or (((.change.before // {}) | del(.stack)) != ((.change.after // {}) | del(.stack)))
+              )] | length' plan.json)
+          rm -f plan.json
+          if [ "$BAD" != "0" ]; then
+            echo "::error::Plan for ${{ matrix.app_dir }} contains $BAD change(s) beyond heroku_app.stack. Review the plan summary; re-run with stack_only_guard=false to roll out intentionally-bundled changes."
+            exit 1
+          fi
+          echo "Guard passed: plan only changes heroku_app.stack."
+
+  # ---------------------------------------------------------------------------
+  # Apply - gated by the "heroku-infra" environment (required reviewers).
+  # Re-plans and re-guards rather than shipping the plan file around: plan
+  # files embed the secret config vars, so they never leave the runner.
+  # ---------------------------------------------------------------------------
+  apply:
+    needs: [prepare, plan]
+    if: inputs.mode == 'plan-and-apply'
+    runs-on: ubuntu-latest
+    # prod apps go through a separate environment (own required reviewers)
+    environment: ${{ contains(matrix.app_dir, '/production/') && 'heroku-infra-prod' || 'heroku-infra' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        app_dir: ${{ fromJson(needs.prepare.outputs.apps) }}
+    defaults:
+      run:
+        working-directory: heroku/pipeline/${{ matrix.app_dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Write terraform.tfvars from per-app secret
+        env:
+          SECRETS_CONTEXT: ${{ toJson(secrets) }}
+        run: |
+          APP=$(basename "${{ matrix.app_dir }}")
+          KEY="TFVARS_$(echo "$APP" | tr 'a-z-' 'A-Z_')"
+          echo "$SECRETS_CONTEXT" | jq -r --arg k "$KEY" '.[$k] // empty' > terraform.tfvars
+          [ -s terraform.tfvars ] || { echo "::error::Repo secret $KEY missing"; exit 1; }
+
+      - name: Init + remote-state guard
+        run: |
+          tofu init -input=false
+          tofu state list | grep -q . || { echo "::error::Empty remote state for ${{ matrix.app_dir }} - refusing to apply."; exit 1; }
+
+      - name: Plan (fresh) + guard
+        run: |
+          tofu plan -input=false -no-color -out=tfplan | tee plan.txt
+          {
+            echo "## Applying: \`${{ matrix.app_dir }}\`"
+            echo '```'
+            tail -c 60000 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.stack_only_guard }}" = "true" ]; then
+            tofu show -json tfplan > plan.json
+            BAD=$(jq '[.resource_changes[]
+              | select(.change.actions != ["no-op"] and .change.actions != ["read"])
+              | select(
+                  (.type != "heroku_app")
+                  or (.change.actions != ["update"])
+                  or (((.change.before // {}) | del(.stack)) != ((.change.after // {}) | del(.stack)))
+                )] | length' plan.json)
+            rm -f plan.json
+            [ "$BAD" = "0" ] || { echo "::error::Plan changed between plan and apply jobs (or guard failed): $BAD unexpected change(s)."; exit 1; }
+          fi
+
+      - name: Apply
+        run: tofu apply -input=false -no-color tfplan
+
+  # ---------------------------------------------------------------------------
+  # Rebuild the latest deployed commit on the new stack - no new commit.
+  # Reads the app's connected GitHub repo/branch from Kolkrabbi (the same API
+  # the rstk-app module uses), purges the build cache (stack changes invalidate
+  # it anyway, and dormant apps are prone to stale-cache classworlds failures),
+  # then uploads the branch-head tarball via the Sources API and creates a
+  # build from it. Apps with no GitHub integration are skipped with a warning.
+  # ---------------------------------------------------------------------------
+  redeploy:
+    needs: [prepare, apply]
+    if: inputs.mode == 'plan-and-apply' && inputs.redeploy
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        app_dir: ${{ fromJson(needs.prepare.outputs.apps) }}
+    env:
+      GH_REPOS_TOKEN: ${{ secrets.GH_REPOS_TOKEN }}
+    steps:
+      - name: Rebuild current commit on the new stack
+        id: rebuild
+        run: |
+          set -euo pipefail
+          APP=$(basename "${{ matrix.app_dir }}")
+          HK='Accept: application/vnd.heroku+json; version=3'
+          AUTH="Authorization: Bearer $HEROKU_API_KEY"
+
+          APP_ID=$(curl -sf "https://api.heroku.com/apps/$APP" -H "$HK" -H "$AUTH" | jq -r .id)
+
+          GH_INFO=$(curl -s "https://kolkrabbi.heroku.com/apps/$APP_ID/github" -H "$AUTH" || true)
+          REPO=$(echo "$GH_INFO" | jq -r '.repo // empty')
+          BRANCH=$(echo "$GH_INFO" | jq -r '.branch // empty')
+          if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
+            echo "::warning::$APP has no GitHub integration - cannot rebuild automatically. Trigger a build manually (git push / heroku builds:create); until then the app still RUNS on the old stack."
+            echo "deployed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Rebuilding $APP from $REPO@$BRANCH"
+
+          SHA=$(curl -sf -H "Authorization: Bearer $GH_REPOS_TOKEN" \
+            "https://api.github.com/repos/$REPO/commits/$BRANCH" | jq -r .sha)
+          curl -sfL -H "Authorization: Bearer $GH_REPOS_TOKEN" \
+            "https://api.github.com/repos/$REPO/tarball/$SHA" -o /tmp/src.tgz
+          echo "Commit: $SHA ($(du -h /tmp/src.tgz | cut -f1))"
+
+          echo "Purging build cache (stack change invalidates it; avoids stale-cache build failures)"
+          curl -sf -X DELETE "https://api.heroku.com/apps/$APP/build-cache" -H "$HK" -H "$AUTH" || \
+            echo "::warning::build-cache purge failed (non-fatal), continuing"
+
+          SRC=$(curl -sf -X POST "https://api.heroku.com/apps/$APP/sources" -H "$HK" -H "$AUTH")
+          PUT_URL=$(echo "$SRC" | jq -r .source_blob.put_url)
+          GET_URL=$(echo "$SRC" | jq -r .source_blob.get_url)
+          curl -sf -X PUT "$PUT_URL" -H 'Content-Type:' --data-binary @/tmp/src.tgz
+
+          BUILD_ID=$(curl -sf -X POST "https://api.heroku.com/apps/$APP/builds" \
+            -H "$HK" -H "$AUTH" -H 'Content-Type: application/json' \
+            -d "{\"source_blob\":{\"url\":\"$GET_URL\",\"version\":\"$SHA\"}}" | jq -r .id)
+          echo "Build $BUILD_ID started"
+
+          # First build after a stack change re-resolves everything: allow ~30 min
+          for i in $(seq 1 90); do
+            sleep 20
+            STATUS=$(curl -sf "https://api.heroku.com/apps/$APP/builds/$BUILD_ID" -H "$HK" -H "$AUTH" | jq -r .status)
+            echo "[$i] build status: $STATUS"
+            case "$STATUS" in
+              succeeded)
+                STACK=$(curl -sf "https://api.heroku.com/apps/$APP" -H "$HK" -H "$AUTH" | jq -r .stack.name)
+                echo "### $APP rebuilt on stack \`$STACK\` at commit \`$SHA\` :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
+                echo "deployed=true" >> "$GITHUB_OUTPUT"
+                exit 0 ;;
+              failed)
+                echo "::error::Build failed for $APP. Check build output on the Heroku dashboard; 'heroku rollback' reverts both slug AND stack if needed."
+                exit 1 ;;
+            esac
+          done
+          echo "::error::Build for $APP did not finish within 30 minutes."
+          exit 1
+
+      # -------------------------------------------------------------------
+      # Smoke check: did the app actually come up on the new release?
+      #   1. latest release status == succeeded (catches release-phase fails)
+      #   2. all formation dynos reach "up", none "crashed"
+      #   3. recent log buffer has no crash signatures
+      # Uses the live Logplex buffer via a log-session, so it works even on
+      # apps with no log retention add-on.
+      # -------------------------------------------------------------------
+      - name: Post-deploy health check
+        if: steps.rebuild.outputs.deployed == 'true'
+        run: |
+          set -euo pipefail
+          APP=$(basename "${{ matrix.app_dir }}")
+          HK='Accept: application/vnd.heroku+json; version=3'
+          AUTH="Authorization: Bearer $HEROKU_API_KEY"
+
+          echo "Waiting 45s for dynos to cycle onto the new release..."
+          sleep 45
+
+          # 1. Latest release must have succeeded
+          REL=$(curl -sf "https://api.heroku.com/apps/$APP/releases" \
+            -H "$HK" -H "$AUTH" -H 'Range: version ..; order=desc,max=1')
+          REL_STATUS=$(echo "$REL" | jq -r '.[0].status')
+          REL_VERSION=$(echo "$REL" | jq -r '.[0].version')
+          echo "Latest release: v$REL_VERSION ($REL_STATUS)"
+          if [ "$REL_STATUS" != "succeeded" ]; then
+            echo "::error::$APP release v$REL_VERSION status is '$REL_STATUS'. 'heroku rollback' reverts slug AND stack."
+            exit 1
+          fi
+
+          # 2. Dynos: poll ~3 min for all formation dynos up; fail fast on crashed
+          NOT_UP=1
+          for i in $(seq 1 12); do
+            DYNOS=$(curl -sf "https://api.heroku.com/apps/$APP/dynos" -H "$HK" -H "$AUTH")
+            echo "$DYNOS" | jq -r '.[] | "\(.name)\t\(.state)\trelease v\(.release.version)"'
+            CRASHED=$(echo "$DYNOS" | jq '[.[] | select(.state == "crashed")] | length')
+            if [ "$CRASHED" != "0" ]; then
+              echo "::error::$CRASHED dyno(s) of $APP CRASHED after the stack upgrade."
+              exit 1
+            fi
+            NOT_UP=$(echo "$DYNOS" | jq '[.[] | select(.type != "run" and .state != "up")] | length')
+            [ "$NOT_UP" = "0" ] && break
+            echo "[$i/12] $NOT_UP dyno(s) still starting..."
+            sleep 15
+          done
+          if [ "$NOT_UP" != "0" ]; then
+            echo "::error::$APP dynos did not all reach 'up' within ~3 minutes."
+            exit 1
+          fi
+
+          # 3. Recent logs: scan for crash signatures
+          LOG_URL=$(curl -sf -X POST "https://api.heroku.com/apps/$APP/log-sessions" \
+            -H "$HK" -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"lines":300,"tail":false}' | jq -r .logplex_url)
+          curl -sf "$LOG_URL" > recent.log || true
+          if grep -E "State changed from starting to crashed|Process exited with status [1-9]|Error R[0-9]+|OutOfMemoryError|Exception in thread \"main\"" recent.log; then
+            echo "::error::Crash signatures in $APP post-deploy logs (matches above)."
+            {
+              echo "### $APP post-deploy log excerpt (FAILED health check)"
+              echo '```'
+              tail -n 60 recent.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "### $APP healthy: release v$REL_VERSION succeeded, all dynos up, no crash signatures in logs :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"

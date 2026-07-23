@@ -1,0 +1,78 @@
+# =============================================================================
+# validate - PR / push checks (no state, no secrets, nothing touches Heroku)
+# =============================================================================
+# - repo-wide `tofu fmt` check
+# - `tofu validate` on every app folder touched by the change
+# - a change to the shared module (heroku/modules/**) validates ALL app folders
+# =============================================================================
+name: validate
+
+on:
+  pull_request:
+    paths: ["heroku/**"]
+  push:
+    branches: [main]
+    paths: ["heroku/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+      - name: tofu fmt check
+        run: tofu fmt -check -diff -recursive heroku/
+
+  changed-dirs:
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.detect.outputs.dirs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect changed app folders
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            CHANGED=$(git diff --name-only "$(git merge-base "$BASE" HEAD)" HEAD)
+          else
+            CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" 2>/dev/null \
+              || git show --name-only --pretty=format: HEAD)
+          fi
+
+          ALL_DIRS=$(find heroku/pipeline -mindepth 3 -maxdepth 3 -type d | sort)
+
+          if echo "$CHANGED" | grep -q '^heroku/modules/'; then
+            # shared module changed -> validate everything
+            DIRS="$ALL_DIRS"
+          else
+            DIRS=$(echo "$CHANGED" \
+              | grep -oE '^heroku/pipeline/[^/]+/[^/]+/[^/]+' | sort -u \
+              | while read -r d; do [ -d "$d" ] && echo "$d"; done)
+          fi
+
+          echo "dirs=$(echo "$DIRS" | grep -v '^$' | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: changed-dirs
+    if: needs.changed-dirs.outputs.dirs != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        dir: ${{ fromJson(needs.changed-dirs.outputs.dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+      - name: tofu validate
+        working-directory: ${{ matrix.dir }}
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
