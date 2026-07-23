@@ -15,7 +15,7 @@ terraform {
   # Uncomment and configure when ready for remote state
   # backend "s3" {
   #   bucket = "rootstock-tofu-state"
-  #   key    = "heroku/apps/finreport-rstk-dev/terraform.tfstate"
+  #   key    = "heroku/pipeline/financials/development/finreport-rstk-dev/terraform.tfstate"
   #   region = "us-east-1"
   # }
 }

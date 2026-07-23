@@ -15,13 +15,11 @@ terraform {
   # Uncomment and configure when ready for remote state
   # backend "s3" {
   #   bucket = "rootstock-tofu-state"
-  #   key    = "heroku/apps/mrp-rstk-dev/terraform.tfstate"
+  #   key    = "heroku/pipeline/mrp/development/mrp-rstk-qa/terraform.tfstate"
   #   region = "us-east-1"
   # }
 }
 
 provider "heroku" {
   # Set via HEROKU_API_KEY environment variable
-  # Or uncomment below:
-  # api_key = var.heroku_api_key
 }

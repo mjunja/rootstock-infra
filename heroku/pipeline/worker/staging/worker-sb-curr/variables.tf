@@ -1,10 +1,15 @@
 # =============================================================================
-# worker-sb-curr - Sensitive inputs
+# worker-sb-curr - Inputs
 # =============================================================================
-# Only the sensitive config vars are declared here. Everything else is set
-# directly in main.tf or inherited from the rstk-app module defaults.
-# Provide values via terraform.tfvars or TF_VAR_* environment variables.
-#
-# NOTE: addon-injected vars (none)
-# are NOT declared or managed here.
+# All sensitive config var values arrive through this single map, supplied via
+# terraform.tfvars (gitignored) or TF_VAR_secrets. The keys this app expects
+# are the ones referenced as var.secrets["..."] in main.tf and listed in
+# terraform.tfvars.example.
 # =============================================================================
+
+variable "secrets" {
+  description = "Sensitive config var values, keyed by config var name"
+  type        = map(string)
+  sensitive   = true
+  default     = {}
+}

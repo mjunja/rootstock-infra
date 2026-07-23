@@ -3,23 +3,20 @@
 # =============================================================================
 # Copy this file to terraform.tfvars and fill in the sensitive values.
 # NEVER commit terraform.tfvars to version control!
-#
-# Alternatively, set these as environment variables:
-#   export TF_VAR_api_usn="value"
-#   etc.
 # =============================================================================
 
-# Sensitive values (REQUIRED - fill these in)
-api_usn              = ""
-api_usnky            = ""
-bonsai_url           = ""
-maven_repo_password  = ""
-mongolab_uri         = ""
-ormongo_dbname       = ""
-ormongo_password     = ""
-ormongo_username     = ""
-rstk_key             = ""
-sforce_client_key    = ""
-sforce_client_secret = ""
-dburl                = ""
-dburl1               = ""
+secrets = {
+  API_USN              = ""
+  API_USNKY            = ""
+  BONSAI_URL           = ""
+  MAVEN_REPO_PASSWORD  = ""
+  MONGOLAB_URI         = ""
+  ORMONGO_DBNAME       = ""
+  ORMONGO_PASSWORD     = ""
+  ORMONGO_USERNAME     = ""
+  RSTK_KEY             = ""
+  SFORCE_CLIENT_KEY    = ""
+  SFORCE_CLIENT_SECRET = ""
+  dburl                = ""
+  dburl1               = ""
+}

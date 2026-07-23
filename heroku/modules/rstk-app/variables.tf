@@ -93,10 +93,15 @@ variable "formations" {
 # -----------------------------------------------------------------------------
 # Add-ons
 # -----------------------------------------------------------------------------
-variable "papertrail_plan" {
-  description = "Papertrail add-on plan (e.g. papertrail:choklad). Set to null to not manage a Papertrail add-on."
-  type        = string
-  default     = null
+variable "addons" {
+  description = <<-EOT
+    Add-ons OWNED by this app, as a map of addon service name => plan,
+    e.g. { papertrail = "papertrail:choklad", ormongo = "ormongo:2-mmap" }.
+    Add-ons billed to OTHER apps and shared via attachments do not belong
+    here - see the note at the bottom of main.tf.
+  EOT
+  type        = map(string)
+  default     = {}
 }
 
 # -----------------------------------------------------------------------------

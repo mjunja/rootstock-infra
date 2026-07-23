@@ -3,15 +3,12 @@
 # =============================================================================
 # Copy this file to terraform.tfvars and fill in the sensitive values.
 # NEVER commit terraform.tfvars to version control!
-#
-# Alternatively, set these as environment variables:
-#   export TF_VAR_ormongo_dbname="value"
-#   etc.
 # =============================================================================
 
-# Sensitive values (REQUIRED - fill these in)
-ormongo_dbname       = ""
-ormongo_password     = ""
-ormongo_username     = ""
-sforce_client_key    = ""
-sforce_client_secret = ""
+secrets = {
+  ORMONGO_DBNAME       = ""
+  ORMONGO_PASSWORD     = ""
+  ORMONGO_USERNAME     = ""
+  SFORCE_CLIENT_KEY    = ""
+  SFORCE_CLIENT_SECRET = ""
+}

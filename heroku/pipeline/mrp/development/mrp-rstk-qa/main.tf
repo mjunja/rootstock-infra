@@ -1,7 +1,7 @@
 # =============================================================================
-# rootf-test-last-0 - Heroku Application
+# mrp-rstk-qa - Heroku Application
 # =============================================================================
-# Part of the "rootforms" pipeline, "staging" stage.
+# Part of the "mrp" pipeline, "development" stage.
 # Mirrors the live Heroku app. Shared logic and common defaults live in the
 # rstk-app module; only this app's specifics are set below.
 #
@@ -11,15 +11,14 @@
 module "app" {
   source = "../../../../modules/rstk-app"
 
-  app_name       = "rootf-test-last-0"
-  pipeline_name  = "rootforms"
-  pipeline_stage = "staging"
-  stack          = "heroku-22"  # differs from the module default
+  app_name       = "mrp-rstk-qa"
+  pipeline_name  = "mrp"
+  # pipeline_stage defaults to "development"
 
   # GitHub integration (live values)
-  github_repo   = "rootstockmfg/hkrdocs"
-  deploy_branch = "qa-build"
-  auto_deploy   = false
+  github_repo   = "rootstockmfg/hkmrp"
+  deploy_branch = "main"
+  auto_deploy   = true
   wait_for_ci   = false
 
   # Add-ons owned by this app
@@ -29,24 +28,26 @@ module "app" {
 
   # Dyno formation (live values)
   formations = {
-    rfworker = { size = "standard-1x", quantity = 0 }
+    dashboard = { size = "standard-1x", quantity = 0 }
+    myworker = { size = "standard-1x", quantity = 0 }
   }
 
   # Non-sensitive config vars. DEFAULT_MONGODB=ORMONGO comes from the module base.
   config_vars = {
-    SFORCE_NAMESPACE    = "DOX__"
-    SFORCE_REDIRECT_URL = "https://web-rstk-test.herokuapp.com/sf/oauth/callback"
+    APP_NAME          = "mrp_qa"
+    JAVA_OPTS         = "-XX:+UseG1GC -XX:MaxRAMPercentage=80.0 -XX:+UseContainerSupport"
+    LOGSTASH_URL      = "https://rootstock-logstash-8a4784f9525f.herokuapp.com"
+    NO_NAMESPACE_ORGS = "00Dd0000000csD5EAI"
+    PGCLIENTENCODING  = "UTF8"
   }
 
   # Sensitive config vars - values come from the `secrets` map supplied via
   # terraform.tfvars (gitignored). Explicit lookups so a missing key fails
   # loudly at plan time instead of silently dropping a config var.
   sensitive_config_vars = {
-    ORMONGO_DBNAME       = var.secrets["ORMONGO_DBNAME"]
-    ORMONGO_PASSWORD     = var.secrets["ORMONGO_PASSWORD"]
-    ORMONGO_USERNAME     = var.secrets["ORMONGO_USERNAME"]
-    SFORCE_CLIENT_KEY    = var.secrets["SFORCE_CLIENT_KEY"]
-    SFORCE_CLIENT_SECRET = var.secrets["SFORCE_CLIENT_SECRET"]
+    ORMONGO_DBNAME   = var.secrets["ORMONGO_DBNAME"]
+    ORMONGO_PASSWORD = var.secrets["ORMONGO_PASSWORD"]
+    ORMONGO_USERNAME = var.secrets["ORMONGO_USERNAME"]
   }
 }
 
@@ -55,12 +56,14 @@ module "app" {
 # -----------------------------------------------------------------------------
 # These are set automatically by the attached add-ons, so they are intentionally
 # absent from the config above:
-#   - ORMONGO_REGION        -> ormongo (billed to worker-rstk-test)
-#   - ORMONGO_RS_URL        -> ormongo (billed to worker-rstk-test)
-#   - ORMONGO_URL           -> ormongo (billed to worker-rstk-test)
+#   - DATABASE_URL          -> heroku-postgresql (billed to mrp-rstk-prod)
+#   - ORMONGO_REGION        -> ormongo (billed to worker-rstk-dev)
+#   - ORMONGO_RS_URL        -> ormongo (billed to worker-rstk-dev)
+#   - ORMONGO_URL           -> ormongo (billed to worker-rstk-dev)
 #   - PAPERTRAIL_API_TOKEN  -> papertrail (owned by this app)
 
 # -----------------------------------------------------------------------------
 # Shared add-ons attached to this app (billed to OTHER apps - not managed here)
 # -----------------------------------------------------------------------------
-#   - ormongo:2-mmap  (billed to worker-rstk-test)
+#   - heroku-postgresql:standard-2  (billed to mrp-rstk-prod)
+#   - ormongo:2-mmap  (billed to worker-rstk-dev)

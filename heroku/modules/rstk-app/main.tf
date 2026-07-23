@@ -58,12 +58,19 @@ resource "heroku_formation" "this" {
 # Add-ons
 # -----------------------------------------------------------------------------
 
-# Papertrail - Log Management (only when a plan is provided)
-resource "heroku_addon" "papertrail" {
-  count = var.papertrail_plan == null ? 0 : 1
+# Add-ons owned by this app (one heroku_addon per service, keyed by name)
+resource "heroku_addon" "this" {
+  for_each = var.addons
 
   app_id = heroku_app.this.id
-  plan   = var.papertrail_plan
+  plan   = each.value
+}
+
+# Papertrail used to be a dedicated papertrail_plan variable; it is now an
+# entry in the addons map. Keep existing state addresses valid.
+moved {
+  from = heroku_addon.papertrail[0]
+  to   = heroku_addon.this["papertrail"]
 }
 
 # -----------------------------------------------------------------------------

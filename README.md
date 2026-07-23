@@ -2,21 +2,36 @@
 
 OpenTofu / Terraform configuration for Rootstock's Heroku applications.
 
+Everything here **mirrors the live Heroku apps** — configs are codified from
+production reality, and nothing changes on Heroku until you deliberately run
+`tofu apply`.
+
 ## Layout
 
 ```
 heroku/
 ├── modules/
-│   └── rstk-app/              # Shared module: app + pipeline + dynos + addon + GitHub
-└── apps/
-    ├── finreport-rstk-dev/    # financials pipeline (development)
-    ├── finreport-rstk-qa/     # financials pipeline (staging)
-    ├── mrp-rstk-dev/          # mrp pipeline (development)
-    └── mrp-rstk-qa/           # mrp pipeline (development)
+│   └── rstk-app/                  # THE shared module: app + pipeline coupling
+│                                  # + formations + owned add-ons + GitHub wiring
+└── pipeline/                      # mirrors the Heroku dashboard hierarchy
+    └── <pipeline>/                # mrp, financials, rootforms, stdcosts,
+        └── <stage>/               # worker, web, grafana, rootstock-logstash…
+            └── <app>/             # one thin root module per app
+tools/
+└── codify_app.py                  # generates an app folder from live Heroku
 ```
 
-Each app folder is a thin root module that calls `modules/rstk-app` with only
-its app-specific values. Everything common is defined once in the module.
+Each app folder is a thin root module calling `modules/rstk-app` with only
+that app's specifics. Every app folder has the same six files:
+
+| File | Committed | Purpose |
+|---|---|---|
+| `main.tf` | yes | module call mirroring the live app |
+| `variables.tf` | yes | one sensitive `secrets` map variable |
+| `outputs.tf` | yes | re-exports of the module outputs |
+| `providers.tf` | yes | provider requirements + backend placeholder |
+| `terraform.tfvars.example` | yes | blank template listing the secret keys |
+| `terraform.tfvars` | **no** (gitignored) | real secret values, local only |
 
 ## Where to change common configuration
 
@@ -26,56 +41,72 @@ its app-specific values. Everything common is defined once in the module.
 | provider versions | `heroku/modules/rstk-app/versions.tf` |
 | config vars shared by all apps (`DEFAULT_MONGODB`) | `heroku/modules/rstk-app/locals.tf` |
 | GitHub auto-deploy / Kolkrabbi logic | `heroku/modules/rstk-app/main.tf` |
-| one app's repo, branch, dynos, plan, config | that app's `apps/<name>/main.tf` |
+| one app's repo, branch, dynos, add-ons, config | that app's `main.tf` |
+| one app's secret values | that app's `terraform.tfvars` (local) |
+
+## Adding an app
+
+```bash
+python3 tools/codify_app.py <pipeline> <stage> <app>
+# e.g.
+python3 tools/codify_app.py rootforms staging rootf-test
+```
+
+The tool reads the live app (read-only GETs), classifies its config vars
+(plain / sensitive / addon-injected), and writes the whole app folder —
+including a local gitignored `terraform.tfvars` with the real secret values.
 
 ## Usage
 
-Per app directory:
-
 ```bash
-export HEROKU_API_KEY="$(heroku auth:token)"   # or a long-lived token
-cd heroku/apps/finreport-rstk-dev
+export HEROKU_API_KEY="$(heroku auth:token)"
+cd heroku/pipeline/<pipeline>/<stage>/<app>
 
-cp terraform.tfvars.example terraform.tfvars    # then fill in the secrets
 tofu init
-tofu plan
-tofu apply
+tofu plan          # read-only; nothing changes on Heroku without apply
 ```
-
-Sensitive values (`ORMONGO_*`, `MONGOLAB_URI`, …) come from `terraform.tfvars`
-(gitignored) or `TF_VAR_*` env vars — never committed.
 
 ## Adopting an app that already exists on Heroku
 
-These configs describe live apps. The first time you manage one, import the
-existing Heroku resources into Terraform state so no apply tries to recreate
-them. Example for `finreport-rstk-dev`:
+These configs describe live apps. Apps codified but never applied have no
+local state — a `plan` there proposes *creating* resources that already
+exist. Before actively managing one, import the live resources:
 
 ```bash
-cd heroku/apps/finreport-rstk-dev
+cd heroku/pipeline/financials/development/finreport-rstk-dev
 tofu init
 tofu import 'module.app.heroku_app.this'                    finreport-rstk-dev
 tofu import 'module.app.heroku_pipeline_coupling.this'      <coupling-id>          # UUID
-tofu import 'module.app.heroku_formation.this["newoneoff"]' finreport-rstk-dev:newoneoff  # app:type (colon!)
-tofu import 'module.app.heroku_addon.papertrail[0]'         <addon-id>             # UUID
+tofu import 'module.app.heroku_formation.this["newoneoff"]' finreport-rstk-dev:newoneoff  # app:type
+tofu import 'module.app.heroku_addon.this["papertrail"]'    <addon-id>             # UUID
 tofu plan   # confirm: no changes (or only expected drift)
 ```
 
 `null_resource`s for GitHub wiring cannot be imported; on first apply they run
 their idempotent scripts (which skip if GitHub is already connected).
 
-## State migration (existing apps refactored into the module)
+## State migration notes
 
-`mrp-rstk-dev` and `mrp-rstk-qa` were refactored from standalone resources into
-`module.app`. Each has a `moved.tf` mapping the old addresses to the new module
-addresses, so `tofu plan` shows the move as a no-op (no destroy/recreate) for
-any existing state. The `moved` blocks can be deleted once every environment has
-applied the move.
+- `mrp-rstk-dev` / `mrp-rstk-qa` were refactored from standalone resources
+  into `module.app`; each keeps a `moved.tf` mapping old state addresses to
+  the module. The module itself also carries `moved` blocks for its own
+  refactors (papertrail → `addons` map, optional GitHub wiring). Chained
+  moves resolve in one plan; the blocks can be deleted once every
+  environment has applied them.
 
-## Notes
+## Conventions
 
-- State is currently local (`terraform.tfstate`, gitignored). The S3 backend is
+- **Production apps are not codified** (deliberate).
+- State is local (`terraform.tfstate`, gitignored). The S3 backend is
   scaffolded but commented out in each app's `providers.tf`.
-- `prevent_destroy = true` is set on every app — applies cannot delete an app.
-- Postgres and ORMongo are shared add-ons billed to owner apps
-  (`mrp-rstk-prod`, `worker-rstk-dev`) and attached, not created here.
+- `prevent_destroy = true` on every app — applies cannot delete an app.
+- Add-ons **owned** by an app go in its `addons` map; add-ons **billed to
+  another app** (shared Postgres, ORMongo, CloudAMQP) are attached, never
+  created here — only documented in comments.
+- Config vars **injected by attached add-ons** (`ORMONGO_URL`,
+  `PAPERTRAIL_API_TOKEN`, `DATABASE_URL`, `CLOUDAMQP_*`,
+  `FOUNDELASTICSEARCH_*`, …) are never managed — the platform owns them.
+  Classification is per app: the same var can be injected on one app and a
+  managed secret on another.
+- Secrets live only in gitignored `terraform.tfvars` files as one
+  `secrets = { KEY = "value" }` map per app.

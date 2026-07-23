@@ -1,5 +1,5 @@
 # =============================================================================
-# rootf-dev - Inputs
+# mrp-rstk-dev - Inputs
 # =============================================================================
 # All sensitive config var values arrive through this single map, supplied via
 # terraform.tfvars (gitignored) or TF_VAR_secrets. The keys this app expects
