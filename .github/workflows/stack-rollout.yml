@@ -167,19 +167,8 @@ jobs:
         if: inputs.stack_only_guard
         run: |
           tofu show -json tfplan > plan.json
-          BAD=$(jq '[.resource_changes[]
-            | select(.change.actions != ["no-op"] and .change.actions != ["read"])
-            | select(
-                (.type != "heroku_app")
-                or (.change.actions != ["update"])
-                or (((.change.before // {}) | del(.stack)) != ((.change.after // {}) | del(.stack)))
-              )] | length' plan.json)
+          python3 "$GITHUB_WORKSPACE/.github/scripts/stack_guard.py" plan.json
           rm -f plan.json
-          if [ "$BAD" != "0" ]; then
-            echo "::error::Plan for ${{ matrix.app_dir }} contains $BAD change(s) beyond heroku_app.stack. Review the plan summary; re-run with stack_only_guard=false to roll out intentionally-bundled changes."
-            exit 1
-          fi
-          echo "Guard passed: plan only changes heroku_app.stack."
 
   # ---------------------------------------------------------------------------
   # Apply - gated by the "heroku-infra" environment (required reviewers).
@@ -229,15 +218,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.stack_only_guard }}" = "true" ]; then
             tofu show -json tfplan > plan.json
-            BAD=$(jq '[.resource_changes[]
-              | select(.change.actions != ["no-op"] and .change.actions != ["read"])
-              | select(
-                  (.type != "heroku_app")
-                  or (.change.actions != ["update"])
-                  or (((.change.before // {}) | del(.stack)) != ((.change.after // {}) | del(.stack)))
-                )] | length' plan.json)
+            python3 "$GITHUB_WORKSPACE/.github/scripts/stack_guard.py" plan.json
             rm -f plan.json
-            [ "$BAD" = "0" ] || { echo "::error::Plan changed between plan and apply jobs (or guard failed): $BAD unexpected change(s)."; exit 1; }
           fi
 
       - name: Apply
