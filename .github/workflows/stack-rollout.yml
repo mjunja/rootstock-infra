@@ -227,11 +227,12 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Rebuild the latest deployed commit on the new stack - no new commit.
-  # Reads the app's connected GitHub repo/branch from Kolkrabbi (the same API
-  # the rstk-app module uses), purges the build cache (stack changes invalidate
-  # it anyway, and dormant apps are prone to stale-cache classworlds failures),
-  # then uploads the branch-head tarball via the Sources API and creates a
-  # build from it. Apps with no GitHub integration are skipped with a warning.
+  # Source resolution: the app's connected GitHub repo/branch via Kolkrabbi
+  # (the same API the rstk-app module uses); apps with NO GitHub integration
+  # fall back to cloning their own Heroku git repo (the exact deployed
+  # source). Either way: purge the build cache (stack changes invalidate it
+  # anyway, and dormant apps are prone to stale-cache classworlds failures),
+  # upload the tree via the Sources API, create a build, then health-check.
   # ---------------------------------------------------------------------------
   redeploy:
     needs: [prepare, apply]
@@ -258,17 +259,23 @@ jobs:
           GH_INFO=$(curl -s "https://kolkrabbi.heroku.com/apps/$APP_ID/github" -H "$AUTH" || true)
           REPO=$(echo "$GH_INFO" | jq -r '.repo // empty')
           BRANCH=$(echo "$GH_INFO" | jq -r '.branch // empty')
-          if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
-            echo "::warning::$APP has no GitHub integration - cannot rebuild automatically. Trigger a build manually (git push / heroku builds:create); until then the app still RUNS on the old stack."
-            echo "deployed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [ -n "$REPO" ] && [ -n "$BRANCH" ]; then
+            echo "Rebuilding $APP from GitHub $REPO@$BRANCH"
+            SHA=$(curl -sf -H "Authorization: Bearer $GH_REPOS_TOKEN" \
+              "https://api.github.com/repos/$REPO/commits/$BRANCH" | jq -r .sha)
+            curl -sfL -H "Authorization: Bearer $GH_REPOS_TOKEN" \
+              "https://api.github.com/repos/$REPO/tarball/$SHA" -o /tmp/src.tgz
+          else
+            # Fallback: no GitHub integration - rebuild the app's CURRENT code
+            # from its own Heroku git repo (same source, same commit, only the
+            # stack changes). Auth via netrc so the API key never hits the log.
+            echo "$APP has no GitHub integration - rebuilding from its Heroku git repo"
+            umask 077
+            printf 'machine git.heroku.com login heroku password %s\n' "$HEROKU_API_KEY" >> "$HOME/.netrc"
+            git clone --quiet "https://git.heroku.com/$APP.git" /tmp/apprepo
+            SHA=$(git -C /tmp/apprepo rev-parse HEAD)
+            tar -C /tmp/apprepo --exclude=.git -czf /tmp/src.tgz .
           fi
-          echo "Rebuilding $APP from $REPO@$BRANCH"
-
-          SHA=$(curl -sf -H "Authorization: Bearer $GH_REPOS_TOKEN" \
-            "https://api.github.com/repos/$REPO/commits/$BRANCH" | jq -r .sha)
-          curl -sfL -H "Authorization: Bearer $GH_REPOS_TOKEN" \
-            "https://api.github.com/repos/$REPO/tarball/$SHA" -o /tmp/src.tgz
           echo "Commit: $SHA ($(du -h /tmp/src.tgz | cut -f1))"
 
           echo "Purging build cache (stack change invalidates it; avoids stale-cache build failures)"

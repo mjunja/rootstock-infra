@@ -17,9 +17,11 @@ plan  ->  approval gate  ->  apply  ->  rebuild latest commit on new stack
 
 The **rebuild** step is what actually moves the dynos: a stack change via
 tofu only sets the *build* stack, so the workflow purges the build cache and
-recreates a build from the connected repo's current branch head — same commit
-SHA, no new commit. Apps without GitHub integration get a warning and must be
-rebuilt manually.
+recreates a build of the app's current code — same commit SHA, no new
+commit. Source resolution: the connected GitHub repo's branch head
+(via Kolkrabbi); apps **without** GitHub integration fall back to cloning
+their own Heroku git repo, so the exact deployed source is rebuilt either
+way.
 
 ### Inputs
 
