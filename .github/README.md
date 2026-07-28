@@ -76,6 +76,13 @@ Applies run `max-parallel: 1` so a failing app stops the batch early.
    - **Migration tripwire: move state to a dedicated Postgres before the
      first production app is codified.** The move is `PG_CONN_STR` change +
      `tofu init -migrate-state` per app; the passphrase travels unchanged.
+   - **First plan after `tofu import` bundles a config-var adoption diff**:
+     import sets `config_vars`/`sensitive_config_vars` to `{}` in state, so
+     the first plan writes the full maps (same values live already has).
+     This trips `stack_only_guard`. Either apply the adoption locally right
+     after importing (before any stack change is committed, the plan is
+     adoption-only), or - if the values were verified identical to live -
+     run the rollout once with `stack_only_guard=false`.
 
 2. **Environments** with *required reviewers* — the approval gate between
    plan and apply. Reviewers inspect the plan in the run's job summary
