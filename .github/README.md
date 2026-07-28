@@ -37,8 +37,9 @@ After a successful rebuild, a **post-deploy health check** verifies the app
 actually came up: latest release `succeeded` (catches release-phase
 failures), all formation dynos reach `up` with none `crashed` (~3 min poll),
 and the recent Logplex buffer is scanned for crash signatures (`State changed
-from starting to crashed`, `Process exited with status N`, `Error R…`,
-`OutOfMemoryError`, main-thread exceptions). It reads logs via a one-shot
+from starting to crashed`, non-zero `Process exited with status N` except the
+expected old-dyno `143`, `Error R…`, `OutOfMemoryError`, main-thread
+exceptions). It reads logs via a one-shot
 log-session, so it works on apps with no log retention add-on. A failure
 fails the run with a log excerpt in the summary — the manual brake is
 `heroku rollback`, which reverts slug **and** stack.
