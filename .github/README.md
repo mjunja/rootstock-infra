@@ -25,7 +25,7 @@ rebuilt manually.
 
 | Input | Meaning |
 |---|---|
-| `apps` | App dirs under `heroku/pipeline/`, comma/space separated |
+| `apps` | Apps to roll out, comma/space separated — full paths (`worker/staging/worker-rstk-qa`) or bare app names (`worker-rstk-qa`), resolved automatically |
 | `mode` | `plan-only` (default) or `plan-and-apply` |
 | `stack_only_guard` | Fail if the plan touches anything besides `heroku_app.stack` (default on) |
 | `redeploy` | Rebuild after apply so the running stack matches (default on) |

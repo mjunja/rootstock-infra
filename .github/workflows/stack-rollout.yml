@@ -77,9 +77,32 @@ jobs:
     outputs:
       apps: ${{ steps.parse.outputs.apps }}
     steps:
+      - uses: actions/checkout@v4
       - id: parse
         run: |
-          APPS=$(echo "${{ inputs.apps }}" | tr ', ' '\n\n' | grep -v '^$' | jq -R . | jq -sc .)
+          FAIL=0
+          RESOLVED=""
+          while read -r t; do
+            [ -z "$t" ] && continue
+            if [ -d "heroku/pipeline/$t" ]; then
+              r="$t"                                     # full pipeline/stage/app path
+            else
+              # bare app name -> resolve to its folder
+              m=$(find heroku/pipeline -mindepth 3 -maxdepth 3 -type d -name "$t" | sed 's|^heroku/pipeline/||')
+              n=$(echo "$m" | grep -c . || true)
+              if [ "$n" != "1" ]; then
+                echo "::error::'$t' matches $n app folder(s) under heroku/pipeline/ - pass the full path like worker/staging/worker-rstk-qa"
+                FAIL=1; continue
+              fi
+              r="$m"
+            fi
+            RESOLVED="$RESOLVED$r"$'\n'
+          done <<EOF
+          $(echo "${{ inputs.apps }}" | tr ', ' '\n\n')
+          EOF
+          [ "$FAIL" = "0" ] || exit 1
+          APPS=$(echo "$RESOLVED" | grep -v '^ *$' | sed 's/^ *//' | jq -R . | jq -sc .)
+          [ "$APPS" != "[]" ] || { echo "::error::no apps resolved from input '${{ inputs.apps }}'"; exit 1; }
           echo "apps=$APPS" >> "$GITHUB_OUTPUT"
           echo "Rolling out to: $APPS"
 
