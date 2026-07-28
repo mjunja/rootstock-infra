@@ -361,12 +361,17 @@ jobs:
             exit 1
           fi
 
-          # 3. Recent logs: scan for crash signatures
+          # 3. Recent logs: scan for crash signatures.
+          # NOT flagged: exit 0 (clean) and exit 143 (SIGTERM - the OLD dyno
+          # being cycled out, present on every successful deploy).
           LOG_URL=$(curl -sf -X POST "https://api.heroku.com/apps/$APP/log-sessions" \
             -H "$HK" -H "$AUTH" -H 'Content-Type: application/json' \
             -d '{"lines":300,"tail":false}' | jq -r .logplex_url)
           curl -sf "$LOG_URL" > recent.log || true
-          if grep -E "State changed from starting to crashed|Process exited with status [1-9]|Error R[0-9]+|OutOfMemoryError|Exception in thread \"main\"" recent.log; then
+          SIGS=$(grep -E "State changed from starting to crashed|Error R[0-9]+|OutOfMemoryError|Exception in thread \"main\"" recent.log || true)
+          BAD_EXITS=$(grep -E "Process exited with status [0-9]+" recent.log | grep -vE "status (0|143)$" || true)
+          if [ -n "$SIGS$BAD_EXITS" ]; then
+            printf '%s\n%s\n' "$SIGS" "$BAD_EXITS" | grep -v '^$'
             echo "::error::Crash signatures in $APP post-deploy logs (matches above)."
             {
               echo "### $APP post-deploy log excerpt (FAILED health check)"
