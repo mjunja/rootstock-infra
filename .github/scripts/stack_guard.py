@@ -40,6 +40,12 @@ def main():
         ch = rc["change"]
         if ch["actions"] in (["no-op"], ["read"]):
             continue
+        # The module's GitHub/Kolkrabbi wiring (null_resource) cannot be
+        # imported, so the first apply after `tofu import` must create it.
+        # The wiring scripts are idempotent (connect skips when already
+        # connected; auto-deploy PATCHes the already-live values).
+        if rc["type"] == "null_resource" and ch["actions"] == ["create"]:
+            continue
         if rc["type"] != "heroku_app" or ch["actions"] != ["update"]:
             problems.append(f"{rc['address']}: action {'/'.join(ch['actions'])}")
             continue
