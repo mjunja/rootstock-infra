@@ -11,8 +11,8 @@
 module "app" {
   source = "../../../../modules/rstk-app"
 
-  app_name       = "mrp-rstk-qa"
-  pipeline_name  = "mrp"
+  app_name      = "mrp-rstk-qa"
+  pipeline_name = "mrp"
   # pipeline_stage defaults to "development"
 
   # GitHub integration (live values)
@@ -29,7 +29,7 @@ module "app" {
   # Dyno formation (live values)
   formations = {
     dashboard = { size = "standard-1x", quantity = 0 }
-    myworker = { size = "standard-1x", quantity = 0 }
+    myworker  = { size = "standard-1x", quantity = 0 }
   }
 
   # Non-sensitive config vars. DEFAULT_MONGODB=ORMONGO comes from the module base.

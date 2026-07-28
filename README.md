@@ -97,8 +97,12 @@ their idempotent scripts (which skip if GitHub is already connected).
 ## Conventions
 
 - **Production apps are not codified** (deliberate).
-- State is local (`terraform.tfstate`, gitignored). The S3 backend is
-  scaffolded but commented out in each app's `providers.tf`.
+- State is remote: `pg` backend, one schema per app, **client-side
+  encrypted** — INTERIM home is grafana-stg's postgres until a dedicated
+  instance exists (must move before any production app is codified).
+  `source .env` (gitignored) for `PG_CONN_STR` + `TF_ENCRYPTION`, or see
+  `.github/README.md`. Leftover local `terraform.tfstate` files are
+  pre-migration backups.
 - `prevent_destroy = true` on every app — applies cannot delete an app.
 - Add-ons **owned** by an app go in its `addons` map; add-ons **billed to
   another app** (shared Postgres, ORMongo, CloudAMQP) are attached, never

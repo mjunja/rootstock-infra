@@ -14,7 +14,7 @@ module "app" {
   app_name       = "grafana-stg"
   pipeline_name  = "grafana"
   pipeline_stage = "staging"
-  stack          = "container"  # differs from the module default
+  stack          = "container" # differs from the module default
 
   # GitHub integration (live values)
   github_repo   = "rootstockmfg/heroku-grafana"
@@ -25,7 +25,11 @@ module "app" {
   # Add-ons owned by this app
   addons = {
     foundelasticsearch = "foundelasticsearch:beagle-ha"
-    heroku-postgresql  = "heroku-postgresql:essential-0"
+    # WARNING: this postgres also holds the OpenTofu remote state for EVERY
+    # codified app (one schema per app, encrypted; see .github/README.md).
+    # Do NOT delete, downgrade, or pg:upgrade it without migrating that state
+    # first. Heroku credential rotation invalidates PG_CONN_STR everywhere.
+    heroku-postgresql = "heroku-postgresql:essential-0"
   }
 
   # Dyno formation (live values)

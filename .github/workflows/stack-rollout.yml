@@ -62,8 +62,11 @@ concurrency:
 env:
   TF_IN_AUTOMATION: "true"
   HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-  # State backend: pg (Heroku Postgres). tofu init reads this automatically.
+  # State backend: pg (grafana-stg's postgres, interim). tofu reads both
+  # automatically. PG_CONN_STR = DATABASE_URL of grafana-stg + ?sslmode=require;
+  # TF_ENCRYPTION = full client-side state-encryption config (see .github/README.md).
   PG_CONN_STR: ${{ secrets.PG_CONN_STR }}
+  TF_ENCRYPTION: ${{ secrets.TF_ENCRYPTION }}
 
 jobs:
   # ---------------------------------------------------------------------------

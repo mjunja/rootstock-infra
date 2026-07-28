@@ -11,10 +11,10 @@
 module "app" {
   source = "../../../../modules/rstk-app"
 
-  app_name       = "web-rstk-dev"
-  pipeline_name  = "web"
+  app_name      = "web-rstk-dev"
+  pipeline_name = "web"
   # pipeline_stage defaults to "development"
-  stack          = "heroku-22"  # differs from the module default
+  stack = "heroku-22" # differs from the module default
 
   # No GitHub integration is configured on this app (github_repo stays null,
   # which skips the Kolkrabbi wiring in the module).

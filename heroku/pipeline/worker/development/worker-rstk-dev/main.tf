@@ -11,8 +11,8 @@
 module "app" {
   source = "../../../../modules/rstk-app"
 
-  app_name       = "worker-rstk-dev"
-  pipeline_name  = "worker"
+  app_name      = "worker-rstk-dev"
+  pipeline_name = "worker"
   # pipeline_stage defaults to "development"
 
   # No GitHub integration is configured on this app (github_repo stays null,

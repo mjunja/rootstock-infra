@@ -14,7 +14,7 @@ module "app" {
   app_name       = "rootstock-logstash"
   pipeline_name  = "rootstock-logstash"
   pipeline_stage = "staging"
-  stack          = "container"  # differs from the module default
+  stack          = "container" # differs from the module default
 
   # GitHub integration (live values)
   github_repo   = "mjunja/rootstock-logstash"

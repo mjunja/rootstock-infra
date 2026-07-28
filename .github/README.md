@@ -53,25 +53,29 @@ Applies run `max-parallel: 1` so a failing app stops the batch early.
 
 ### One-time setup
 
-1. **Remote state per app** (hard prerequisite). CI has no access to local
-   `terraform.tfstate` files. The chosen backend is **`pg` on a dedicated
-   Heroku Postgres** (built-in locking, no AWS account needed). For each app
-   CI should manage, replace the commented backend placeholder in its
-   `providers.tf` with:
+1. **Remote state per app.** Every app folder has a `backend "pg"` block
+   (one `schema_name` per app). The backend is **INTERIM: grafana-stg's
+   `heroku-postgresql:essential-0`** — tofu state lives in per-app schemas
+   next to (but fully isolated from) Grafana's `public` schema. State is
+   **client-side encrypted** (pbkdf2 + AES-GCM), so a reader of that
+   database sees ciphertext only.
 
-   ```hcl
-   backend "pg" {
-     schema_name = "<app_name with - as _>"   # unique per app
-   }
-   ```
-
-   then `export PG_CONN_STR="postgres://…?sslmode=require"` and run
-   `tofu init -migrate-state` locally, and commit. The connection string is
-   never committed — locally it comes from your shell, in CI from the
-   `PG_CONN_STR` secret. Use a dedicated database: state contains every
-   secret config var in plaintext. The workflow refuses to plan/apply any
-   app whose remote state is empty — that guard is what prevents CI from
-   trying to re-create live apps.
+   - `PG_CONN_STR` = grafana-stg's `DATABASE_URL` + `?sslmode=require`.
+     Heroku rotates it on some maintenance events — when auth starts
+     failing, refresh from `heroku config:get DATABASE_URL -a grafana-stg`
+     and update the secret + local `.env`.
+   - `TF_ENCRYPTION` = the full encryption config (key provider +
+     passphrase). Same value locally and in CI; also keep the passphrase in
+     the team password manager — **losing it means re-importing state**.
+   - Locally, both come from the repo-root `.env` (gitignored):
+     `source .env` before running tofu.
+   - Only apps that were actually applied/imported have state; the others'
+     schemas appear when they are first managed. The workflow refuses to
+     plan/apply any app whose remote state is empty — that guard is what
+     prevents CI from trying to re-create live apps.
+   - **Migration tripwire: move state to a dedicated Postgres before the
+     first production app is codified.** The move is `PG_CONN_STR` change +
+     `tofu init -migrate-state` per app; the passphrase travels unchanged.
 
 2. **Environments** with *required reviewers* — the approval gate between
    plan and apply. Reviewers inspect the plan in the run's job summary
@@ -86,7 +90,8 @@ Applies run `max-parallel: 1` so a failing app stops the batch early.
    | Secret | Purpose |
    |---|---|
    | `HEROKU_API_KEY` | Heroku API token (used by tofu, Kolkrabbi, builds API) |
-   | `PG_CONN_STR` | Postgres connection string for the `pg` state backend |
+   | `PG_CONN_STR` | Postgres connection string for the `pg` state backend (grafana-stg `DATABASE_URL` + `?sslmode=require`, interim) |
+   | `TF_ENCRYPTION` | Full OpenTofu state-encryption config incl. passphrase (copy from local `.env`) |
    | `GH_REPOS_TOKEN` | Read access to app source repos (tarball download for rebuild) |
    | `TFVARS_<APP>` | Per-app: the full content of that app's `terraform.tfvars`. Name = app name uppercased, `-` → `_`, e.g. `worker-rstk-qa` → `TFVARS_WORKER_RSTK_QA` |
 

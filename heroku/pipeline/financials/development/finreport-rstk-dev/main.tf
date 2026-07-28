@@ -11,8 +11,8 @@
 module "app" {
   source = "../../../../modules/rstk-app"
 
-  app_name       = "finreport-rstk-dev"
-  pipeline_name  = "financials"
+  app_name      = "finreport-rstk-dev"
+  pipeline_name = "financials"
   # pipeline_stage defaults to "development"
 
   # GitHub integration (live values)

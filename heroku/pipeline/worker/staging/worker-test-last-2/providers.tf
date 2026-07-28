@@ -12,12 +12,11 @@ terraform {
     }
   }
 
-  # Uncomment and configure when ready for remote state
-  # backend "s3" {
-  #   bucket = "rootstock-tofu-state"
-  #   key    = "heroku/pipeline/worker/staging/worker-test-last-2/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
+  # Remote state: pg backend on grafana-stg's postgres (INTERIM - see .github/README.md).
+  # Connection string comes from PG_CONN_STR env; state encryption via TF_ENCRYPTION.
+  backend "pg" {
+    schema_name = "worker_test_last_2"
+  }
 }
 
 provider "heroku" {

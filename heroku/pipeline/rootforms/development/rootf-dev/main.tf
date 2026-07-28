@@ -11,10 +11,10 @@
 module "app" {
   source = "../../../../modules/rstk-app"
 
-  app_name       = "rootf-dev"
-  pipeline_name  = "rootforms"
+  app_name      = "rootf-dev"
+  pipeline_name = "rootforms"
   # pipeline_stage defaults to "development"
-  stack          = "heroku-22"  # differs from the module default
+  stack = "heroku-22" # differs from the module default
 
   # GitHub integration (live values)
   github_repo   = "rootstockmfg/hkrdocs"
