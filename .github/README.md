@@ -32,6 +32,12 @@ way.
 | `stack_only_guard` | Fail if the plan touches anything besides `heroku_app.stack` (default on) |
 | `redeploy` | Rebuild after apply so the running stack matches (default on) |
 | `allow_prod` | Must be explicitly set to include `…/production/…` apps; prod applies are also gated by the separate `heroku-infra-prod` environment |
+| `pin_jdk` | e.g. `8`: if the rebuilt source lacks `system.properties`, inject `java.runtime.version=<value>` — old code keeps the JDK it was originally built with (new-stack defaults jump to the latest LTS) |
+
+The rebuild targets the **deployed slug's commit** (not the branch tip) when
+the app is GitHub-connected — on archive apps (`*-last-N`) the branch has
+usually moved far past the pinned release, and rebuilding branch head would
+silently deploy different code.
 
 After a successful rebuild, a **post-deploy health check** verifies the app
 actually came up: latest release `succeeded` (catches release-phase
