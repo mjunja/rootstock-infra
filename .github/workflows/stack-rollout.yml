@@ -51,6 +51,10 @@ on:
         description: "Explicitly allow production apps (…/production/…) in this run; their applies additionally require heroku-infra-prod approval"
         type: boolean
         default: false
+      pin_jdk:
+        description: "If set (e.g. 8) and the rebuilt source has no system.properties, inject java.runtime.version=<value> so old code keeps its original JDK on the new stack"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -259,12 +263,30 @@ jobs:
           GH_INFO=$(curl -s "https://kolkrabbi.heroku.com/apps/$APP_ID/github" -H "$AUTH" || true)
           REPO=$(echo "$GH_INFO" | jq -r '.repo // empty')
           BRANCH=$(echo "$GH_INFO" | jq -r '.branch // empty')
+          # Rebuild what is DEPLOYED, not the branch tip: on archive apps the
+          # branch may have moved far past the pinned release.
+          SLUG_ID=$(curl -sf "https://api.heroku.com/apps/$APP/releases" -H "$HK" -H "$AUTH" \
+            -H 'Range: version ..; order=desc,max=20' \
+            | jq -r '[.[] | select(.slug != null)][0].slug.id // empty')
+          DEPLOYED_SHA=""
+          if [ -n "$SLUG_ID" ]; then
+            DEPLOYED_SHA=$(curl -sf "https://api.heroku.com/apps/$APP/slugs/$SLUG_ID" -H "$HK" -H "$AUTH" \
+              | jq -r '.commit // empty')
+          fi
           if [ -n "$REPO" ] && [ -n "$BRANCH" ]; then
-            echo "Rebuilding $APP from GitHub $REPO@$BRANCH"
-            SHA=$(curl -sf -H "Authorization: Bearer $GH_REPOS_TOKEN" \
-              "https://api.github.com/repos/$REPO/commits/$BRANCH" | jq -r .sha)
+            if [ -n "$DEPLOYED_SHA" ]; then
+              SHA="$DEPLOYED_SHA"
+              echo "Rebuilding $APP from GitHub $REPO@$SHA (deployed commit; branch is $BRANCH)"
+            else
+              SHA=$(curl -sf -H "Authorization: Bearer $GH_REPOS_TOKEN" \
+                "https://api.github.com/repos/$REPO/commits/$BRANCH" | jq -r .sha)
+              echo "Rebuilding $APP from GitHub $REPO@$BRANCH head ($SHA)"
+            fi
             curl -sfL -H "Authorization: Bearer $GH_REPOS_TOKEN" \
-              "https://api.github.com/repos/$REPO/tarball/$SHA" -o /tmp/src.tgz
+              "https://api.github.com/repos/$REPO/tarball/$SHA" -o /tmp/gh.tgz
+            mkdir -p /tmp/appsrc
+            tar -xzf /tmp/gh.tgz --strip-components=1 -C /tmp/appsrc
+            SRC_DIR=/tmp/appsrc
           else
             # Fallback: no GitHub integration - rebuild the app's CURRENT code
             # from its own Heroku git repo (same source, same commit, only the
@@ -287,8 +309,13 @@ jobs:
               exit 0
             fi
             SHA=$(git -C /tmp/apprepo rev-parse HEAD)
-            tar -C /tmp/apprepo --exclude=.git -czf /tmp/src.tgz .
+            SRC_DIR=/tmp/apprepo
           fi
+          if [ -n "${{ inputs.pin_jdk }}" ] && [ ! -f "$SRC_DIR/system.properties" ]; then
+            echo "java.runtime.version = ${{ inputs.pin_jdk }}" > "$SRC_DIR/system.properties"
+            echo "::notice::$APP source has no system.properties - injected java.runtime.version=${{ inputs.pin_jdk }} for this rebuild (pin_jdk input)."
+          fi
+          tar -C "$SRC_DIR" --exclude=.git -czf /tmp/src.tgz .
           echo "Commit: $SHA ($(du -h /tmp/src.tgz | cut -f1))"
 
           echo "Purging build cache (stack change invalidates it; avoids stale-cache build failures)"
