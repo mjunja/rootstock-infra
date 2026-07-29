@@ -14,7 +14,6 @@ module "app" {
   app_name       = "finreport-test-last-1"
   pipeline_name  = "financials"
   pipeline_stage = "staging"
-  stack          = "heroku-20" # differs from the module default
 
   # GitHub integration (live values)
   github_repo   = "rootstockmfg/hkarag"
