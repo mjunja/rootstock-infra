@@ -14,7 +14,6 @@ module "app" {
   app_name       = "prerelease-worker"
   pipeline_name  = "pre-release"
   pipeline_stage = "production"
-  stack          = "heroku-22" # differs from the module default
 
   # No GitHub integration is configured on this app (github_repo stays null,
   # which skips the Kolkrabbi wiring in the module).
