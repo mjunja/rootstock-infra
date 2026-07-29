@@ -14,7 +14,6 @@ module "app" {
   app_name       = "rootf-qa-last-0"
   pipeline_name  = "rootforms"
   pipeline_stage = "staging"
-  stack          = "heroku-22" # differs from the module default
 
   # GitHub integration (live values)
   github_repo   = "rootstockmfg/hkrdocs"
