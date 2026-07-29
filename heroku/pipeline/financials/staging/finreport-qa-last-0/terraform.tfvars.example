@@ -1,0 +1,14 @@
+# =============================================================================
+# finreport-qa-last-0 - Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in the sensitive values.
+# NEVER commit terraform.tfvars to version control!
+# =============================================================================
+
+secrets = {
+  HEROKU_PASSWORD  = ""
+  HEROKU_USERNAME  = ""
+  ORMONGO_DBNAME   = ""
+  ORMONGO_PASSWORD = ""
+  ORMONGO_USERNAME = ""
+}
