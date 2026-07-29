@@ -273,6 +273,19 @@ jobs:
             umask 077
             printf 'machine git.heroku.com login heroku password %s\n' "$HEROKU_API_KEY" >> "$HOME/.netrc"
             git clone --quiet "https://git.heroku.com/$APP.git" /tmp/apprepo
+            if ! git -C /tmp/apprepo rev-parse HEAD >/dev/null 2>&1; then
+              # Empty repo: nothing was ever git-pushed. Two sub-cases:
+              SLUG=$(curl -sf "https://api.heroku.com/apps/$APP/releases" -H "$HK" -H "$AUTH" \
+                -H 'Range: version ..; order=desc,max=20' \
+                | jq -r '[.[] | select(.slug != null)][0].slug.id // empty')
+              if [ -z "$SLUG" ]; then
+                echo "::notice::$APP has never had code deployed (no slug, empty git repo). Nothing to rebuild - for a slug-less app the stack change is already fully effective."
+              else
+                echo "::warning::$APP runs a slug but its git repo is empty (deployed via pipeline promotion or slug copy). Cannot rebuild from source - promote a new-stack slug from the upstream app instead; until then it still RUNS on the old stack."
+              fi
+              echo "deployed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             SHA=$(git -C /tmp/apprepo rev-parse HEAD)
             tar -C /tmp/apprepo --exclude=.git -czf /tmp/src.tgz .
           fi
