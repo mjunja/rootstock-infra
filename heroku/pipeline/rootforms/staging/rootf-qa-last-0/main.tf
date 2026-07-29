@@ -32,9 +32,9 @@ module "app" {
     rfworker = { size = "standard-1x", quantity = 0 }
   }
 
-  # Non-sensitive config vars.
-  # NOTE: this app has no DEFAULT_MONGODB set live; the module base adds
-  # DEFAULT_MONGODB=ORMONGO on first apply.
+  # Non-sensitive config vars. This app has no DEFAULT_MONGODB live, so the
+  # shared base is excluded - the config mirrors live exactly.
+  include_base_config_vars = false
   config_vars = {
     SFORCE_NAMESPACE = "DOX__"
   }

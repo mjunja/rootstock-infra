@@ -119,3 +119,9 @@ variable "sensitive_config_vars" {
   default     = {}
   sensitive   = true
 }
+
+variable "include_base_config_vars" {
+  description = "Merge the shared base config vars (DEFAULT_MONGODB) into this app. Set false for apps that do NOT have them live - the config must mirror live, not extend it."
+  type        = bool
+  default     = true
+}

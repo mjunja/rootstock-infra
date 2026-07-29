@@ -7,9 +7,9 @@
 # =============================================================================
 
 locals {
-  base_config_vars = {
+  base_config_vars = var.include_base_config_vars ? {
     DEFAULT_MONGODB = "ORMONGO"
-  }
+  } : {}
 
   config_vars = merge(local.base_config_vars, var.config_vars)
 }

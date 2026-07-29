@@ -37,9 +37,9 @@ module "app" {
     web = { size = "basic", quantity = 1 }
   }
 
-  # Non-sensitive config vars.
-  # NOTE: this app has no DEFAULT_MONGODB set live; the module base adds
-  # DEFAULT_MONGODB=ORMONGO on first apply.
+  # Non-sensitive config vars. This app has no DEFAULT_MONGODB live, so the
+  # shared base is excluded - the config mirrors live exactly.
+  include_base_config_vars = false
   config_vars = {
     GF_DATABASE_SCHEMA  = "grafana_stg"
     GF_SERVER_DOMAIN    = "grafana-stg-4c716a255f33.herokuapp.com"

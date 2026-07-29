@@ -30,9 +30,9 @@ module "app" {
     web = { size = "performance-m", quantity = 1 }
   }
 
-  # Non-sensitive config vars.
-  # NOTE: this app has no DEFAULT_MONGODB set live; the module base adds
-  # DEFAULT_MONGODB=ORMONGO on first apply.
+  # Non-sensitive config vars. This app has no DEFAULT_MONGODB live, so the
+  # shared base is excluded - the config mirrors live exactly.
+  include_base_config_vars = false
   config_vars = {
     ELASTICSEARCH_HOST = "https://c21fdff3e29d4fe28ddc62ab31052140.us-east-1.aws.found.io:443"
     JAVA_TOOL_OPTIONS  = "-Xmx256m -Xms128m"
