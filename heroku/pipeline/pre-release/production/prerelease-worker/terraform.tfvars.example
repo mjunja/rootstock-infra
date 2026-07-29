@@ -1,0 +1,19 @@
+# =============================================================================
+# prerelease-worker - Terraform Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in the sensitive values.
+# NEVER commit terraform.tfvars to version control!
+# =============================================================================
+
+secrets = {
+  API_USN              = ""
+  API_USNKY            = ""
+  CLOUDAMQP_APIKEY     = ""
+  CLOUDAMQP_URL        = ""
+  ORMONGO_DBNAME       = ""
+  ORMONGO_PASSWORD     = ""
+  ORMONGO_USERNAME     = ""
+  RSTK_KEY             = ""
+  SFORCE_CLIENT_KEY    = ""
+  SFORCE_CLIENT_SECRET = ""
+}
