@@ -14,7 +14,6 @@ module "app" {
   app_name       = "worker-sb-curr"
   pipeline_name  = "worker"
   pipeline_stage = "staging"
-  stack          = "heroku-22" # differs from the module default
 
   # No GitHub integration is configured on this app (github_repo stays null,
   # which skips the Kolkrabbi wiring in the module).
