@@ -124,9 +124,9 @@ def emit(pipeline, stage, app, repo_root):
         plain["DEFAULT_MONGODB"] = dm
         dm_note = "  # Non-sensitive config vars. DEFAULT_MONGODB overrides the module base value.\n"
     else:
-        dm_note = ("  # Non-sensitive config vars.\n"
-                   "  # NOTE: this app has no DEFAULT_MONGODB set live; the module base adds\n"
-                   "  # DEFAULT_MONGODB=ORMONGO on first apply.\n")
+        dm_note = ("  # Non-sensitive config vars. This app has no DEFAULT_MONGODB live, so the\n"
+                   "  # shared base is excluded - the config mirrors live exactly.\n"
+                   "  include_base_config_vars = false\n")
 
     d = os.path.join(repo_root, "heroku", "pipeline", pipeline, stage, app)
     os.makedirs(d, exist_ok=True)
@@ -305,12 +305,11 @@ output "pipeline_stage" {{
     }}
   }}
 
-  # Uncomment and configure when ready for remote state
-  # backend "s3" {{
-  #   bucket = "rootstock-tofu-state"
-  #   key    = "heroku/pipeline/{pipeline}/{stage}/{app}/terraform.tfstate"
-  #   region = "us-east-1"
-  # }}
+  # Remote state: pg backend on grafana-stg's postgres (INTERIM - see .github/README.md).
+  # Connection string comes from PG_CONN_STR env; state encryption via TF_ENCRYPTION.
+  backend "pg" {{
+    schema_name = "{app.replace('-', '_')}"
+  }}
 }}
 
 provider "heroku" {{
