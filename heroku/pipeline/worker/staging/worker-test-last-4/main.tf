@@ -25,7 +25,7 @@ module "app" {
 
   # Dyno formation (live values)
   formations = {
-    worker = { size = "standard-2x", quantity = 1 }
+    worker = { size = "standard-2x", quantity = 3 }
   }
 
   # Non-sensitive config vars. DEFAULT_MONGODB=ORMONGO comes from the module base.
